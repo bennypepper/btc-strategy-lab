@@ -1,13 +1,13 @@
 """
 core/optimizer.py
 =================
-Dynamic Grid Search Optimizer for CBBI Strategy Lab.
+Dynamic Grid Search Optimizer for BTC Strategy Lab.
 
 Runs a Numba-JIT-compiled grid search over all (buy_threshold, sell_threshold,
 alloc_buy, alloc_sell) combinations against any DataFrame.
 
-Designed to be called against live CBBI API data so that optimal params
-stay aligned with the current (ever-evolving) CBBI formula — addressing the
+Designed to be called against live BTC price data so that optimal params
+stay aligned with the current market data — addressing the
 "Index Revision Bias" documented in our research.
 
 Architecture note
@@ -230,7 +230,7 @@ def run_live_optimization(
     split_date: str = "2021-01-01",
 ) -> OptimizationResult:
     """
-    Run full grid search against the provided DataFrame (should be live CBBI data).
+    Run full grid search against the provided DataFrame (should be live BTC data with Trolololo).
 
     Parameters
     ----------

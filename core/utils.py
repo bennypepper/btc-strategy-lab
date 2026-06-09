@@ -1,7 +1,7 @@
 """
 core/utils.py
 ==============
-Utility functions for the CBBI Strategy Lab.
+Utility functions for the BTC Strategy Lab.
 """
 
 def format_percentage(value: float, decimal_places: int = 1) -> str:

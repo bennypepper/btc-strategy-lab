@@ -7,7 +7,7 @@ Methodology, glossary, and full disclaimer.
 import streamlit as st
 from core.styles import inject_css
 
-st.set_page_config(page_title="Documentation · CBBI Strategy Lab", page_icon="📖", layout="wide")
+st.set_page_config(page_title="Documentation · BTC Strategy Lab", page_icon="📖", layout="wide")
 inject_css()
 
 st.markdown("## 📖 Documentation")
@@ -19,7 +19,7 @@ st.markdown(
 )
 
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-    "What is CBBI?",
+    "On-Chain Indicators",
     "Strategy Logic",
     "Metric Glossary",
     "Research Methodology",
@@ -27,10 +27,10 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "About the Author",
 ])
 
-# ── Tab 1: What is CBBI ───────────────────────────────────────────────────────
+# ── Tab 1: On-Chain Indicators ─────────────────────────────────────────────────────
 with tab1:
     st.markdown("""
-### What is CBBI?
+### On-Chain Indicators
 
 The **Crypto Bitcoin Bull/Bear Index (CBBI)** is a composite on-chain data indicator that attempts
 to identify where Bitcoin is within its market cycle.
@@ -46,7 +46,7 @@ Data source: [cbbi.info](https://cbbi.info) · Dataset: 2012-01-01 to 2026-03-15
 
 ---
 
-### The 9 CBBI Sub-Indicators
+### The 10 On-Chain Indicators Analyzed
 
 | Indicator | Internal Name | Description |
 |---|---|---|
@@ -64,7 +64,7 @@ Data source: [cbbi.info](https://cbbi.info) · Dataset: 2012-01-01 to 2026-03-15
 
 ### Why Trolololo?
 
-Phase 2 of the underlying research performed **Spearman correlation analysis** across all 9 indicators
+Phase 2 of the underlying research performed **Spearman correlation analysis** across all 10 indicators
 against forward Bitcoin returns at 7, 14, 30, 60, and 90-day lag windows on In-Sample data (2012–2020).
 
 The analysis found that **Trolololo (Dynamic Channel Normalization)** consistently showed the highest
@@ -237,7 +237,7 @@ with tab5:
     st.markdown("""
 ### ⚠ Investment Disclaimer
 
-**CBBI Strategy Lab is an academic research tool built for educational purposes only.**
+**BTC Strategy Lab is an academic research tool built for educational purposes only.**
 
 Nothing on this platform constitutes financial advice, investment advice, trading advice,
 or any other type of advice. The content on this application should not be used as the
@@ -268,8 +268,8 @@ This is a small sample size for statistical inference. Parameters optimal over 3
 may not generalize to future cycles with different characteristics.
 
 **2. Signal Frequency in OOS Period**  
-The Out-of-Sample period (2021–2026) exhibited different CBBI dynamics than the In-Sample
-period. The CBBI Trolololo indicator spent extended periods in the "hold zone," generating
+The Out-of-Sample period (2021–2026) exhibited different dynamics than the In-Sample
+period. The Trolololo indicator spent extended periods in the "hold zone," generating
 fewer trades than during In-Sample. This is a feature of the market cycle, not a system failure.
 
 **3. Data Recency**  
@@ -314,7 +314,7 @@ with tab6:
 This web application was developed as the public deliverable for his undergraduate research (PKL / Internship) in 2026.
 
 - **GitHub:** [github.com/bennypepper](https://github.com/bennypepper)
-- **Research Repository:** [cbbi-optimization-research](https://github.com/bennypepper/cbbi-optimization-research)
+- **Research Repository:** [btc-trading-optimization](https://github.com/bennypepper/btc-trading-optimization)
 
 *The complete source code, mathematical methodologies, and datasets used in this research are open-sourced for academic transparency.*
     """)

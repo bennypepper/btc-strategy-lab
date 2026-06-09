@@ -1,7 +1,7 @@
 """
 core/styles.py
 ==============
-Centralized CSS for CBBI Strategy Lab.
+Centralized CSS for BTC Strategy Lab.
 Import and call inject_css() on every Streamlit page for consistent styling
 across the entire app (sidebar active state, metric cards, buttons, etc.).
 """

@@ -25,8 +25,8 @@ This application uses **Logarithmic Regression** (also known as Trolololo / Bitc
 ## Running Locally
 
 ```bash
-git clone https://github.com/bennypepper/cbbi-strategy-lab.git
-cd cbbi-strategy-lab
+git clone https://github.com/bennypepper/btc-strategy-lab.git
+cd btc-strategy-lab
 pip install -r requirements.txt
 streamlit run app.py
 ```
@@ -36,7 +36,7 @@ Requires Python 3.11 or higher.
 ## Project Structure
 
 ```text
-cbbi-strategy-lab/
+btc-strategy-lab/
 ├── app.py                  # Home page and sidebar navigation
 ├── core/                   # Shared logic and utilities
 │   ├── charts.py           # Plotly chart generation
@@ -62,7 +62,7 @@ This application is for educational and academic purposes only. All results are 
 
 ## Research Context
 
-- **Phase 1-3 repository:** Public research repo (https://github.com/bennypepper/cbbi-optimization-research)
+- **Phase 1-3 repository:** Public research repo (https://github.com/bennypepper/btc-trading-optimization)
 - **Research title:** Optimalisasi Parameter Trading Bitcoin Menggunakan Grid Search pada Tiga Metrik Evaluasi Berbasis Indikator Logarithmic Regression
 - **Data sources:** CBBI dataset (10 on-chain indicators) + Yahoo Finance BTC-USD. Logarithmic Regression computed independently.
 - **Optimization:** Grid Search across 1,293,750 parameter combinations × 3 evaluation metrics

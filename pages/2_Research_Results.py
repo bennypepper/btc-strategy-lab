@@ -24,7 +24,7 @@ from core.charts import (
 from core.styles import inject_css
 from core.utils import format_percentage
 
-st.set_page_config(page_title="Research Results · CBBI Strategy Lab", page_icon="🔬", layout="wide")
+st.set_page_config(page_title="Research Results · BTC Strategy Lab", page_icon="🔬", layout="wide")
 inject_css()
 
 # ── Load data ─────────────────────────────────────────────────────────────────

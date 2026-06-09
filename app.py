@@ -1,7 +1,7 @@
 """
 app.py
 ======
-CBBI Strategy Lab — Streamlit entry point and home page.
+BTC Strategy Lab — Streamlit entry point and home page.
 
 Responsibilities:
   1. Page config + global CSS (via core.styles)
@@ -19,12 +19,12 @@ from core.utils import format_percentage, format_currency
 
 # ── Page configuration ────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="CBBI Strategy Lab",
+    page_title="BTC Strategy Lab",
     page_icon="₿",
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
-        "About": "CBBI Strategy Lab — Bitcoin backtesting simulator built on academic research. Not financial advice.",
+        "About": "BTC Strategy Lab — Bitcoin backtesting simulator built on academic research. Not financial advice.",
     },
 )
 
@@ -64,7 +64,7 @@ with st.spinner("Initializing…"):
 st.markdown(
     """
     <div style="margin-bottom:0.15rem;">
-      <span class="page-title">&#8383; CBBI Strategy Lab</span>
+      <span class="page-title">&#8383; BTC Strategy Lab</span>
     </div>
     <p class="page-subtitle">
       Bitcoin backtesting simulator powered by on-chain indicator analysis &middot; Academic research tool
@@ -279,7 +279,7 @@ st.divider()
 st.markdown(
     """
     <div class="disclaimer-box">
-    &#9888;&#65039; <b>Disclaimer:</b> CBBI Strategy Lab is an academic research tool built for educational purposes.
+    &#9888;&#65039; <b>Disclaimer:</b> BTC Strategy Lab is an academic research tool built for educational purposes.
     All results are based on historical backtesting only. Past performance does not guarantee future results.
     Nothing on this platform constitutes financial advice. Cryptocurrency trading involves substantial risk of loss.
     This tool was developed as part of undergraduate research (PKL 2026) and is not affiliated with CBBI.info
@@ -294,7 +294,7 @@ st.markdown(
     """
     <div style="text-align:center;margin-top:2.5rem;opacity:0.55;font-size:0.78rem;
                 color:#547792;font-family:'Inter',sans-serif;">
-      CBBI Strategy Lab &middot; Built on academic research &middot;
+      BTC Strategy Lab &middot; Built on academic research &middot;
       Data source: cbbi.info + Yahoo Finance
     </div>
     """,

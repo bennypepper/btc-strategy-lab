@@ -259,7 +259,7 @@ def run_backtest_full(
                 "BTC Price":      round(p_exec, 2),
                 "Amount (USD)":   round(action[1], 2),
                 "BTC Amount":     round(action[2], 6),   # exact BTC qty bought/sold
-                "CBBI Index":     round(sig, 1),
+                "Signal Index":     round(sig, 1),
                 "Cash After":     round(cash, 2),
                 "BTC Held After": round(btc, 6),
                 "Equity After":   round(equity_after, 2),
@@ -334,7 +334,7 @@ def run_backtest_full(
     trade_log = pd.DataFrame(trade_rows) if trade_rows else pd.DataFrame(
         columns=[
             "Date", "Action", "BTC Price", "Amount (USD)",
-            "BTC Amount", "CBBI Index", "Cash After",
+            "BTC Amount", "Signal Index", "Cash After",
             "BTC Held After", "Equity After",
         ]
     )

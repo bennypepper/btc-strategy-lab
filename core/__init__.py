@@ -1,1 +1,1 @@
-# core package — CBBI Strategy Lab backend
+# core package — BTC Strategy Lab backend

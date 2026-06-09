@@ -1,7 +1,7 @@
 """
 core/charts.py
 ==============
-Chart builders for CBBI Strategy Lab — light theme edition.
+Chart builders for BTC Strategy Lab — light theme edition.
 
 Key design decisions
 --------------------
@@ -292,7 +292,7 @@ def build_equity_chart(result: SimulationResult) -> go.Figure:
 # Chart 2: Trolololo Signal
 # ══════════════════════════════════════════════════════════════════════════════
 
-def build_cbbi_chart(
+def build_signal_chart(
     df: pd.DataFrame,
     threshold_buy: int,
     threshold_sell: int,

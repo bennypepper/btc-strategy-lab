@@ -1,7 +1,7 @@
 """
 pages/1_Simulator.py
 ====================
-Interactive backtesting simulator — Page 1 of CBBI Strategy Lab.
+Interactive backtesting simulator — Page 1 of BTC Strategy Lab.
 """
 
 import streamlit as st
@@ -10,12 +10,12 @@ import numpy as np
 
 from core.data_loader import load_smart_dataset, get_dataset_slice, load_research_results
 from core.engine import run_backtest_full
-from core.charts import build_equity_chart, build_cbbi_chart  # both now Plotly
+from core.charts import build_equity_chart, build_signal_chart  # both now Plotly
 from core.styles import inject_css
 from core.utils import format_percentage, format_currency, format_number
 from core.optimizer import load_live_params
 
-st.set_page_config(page_title="Simulator · CBBI Strategy Lab", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="Simulator · BTC Strategy Lab", page_icon="⚡", layout="wide")
 inject_css()
 
 # ── Scenario definitions — names match CLI exactly ───────────────────────────
@@ -442,7 +442,7 @@ with col_results:
         chart_equity = build_equity_chart(result)
         st.plotly_chart(chart_equity, width='stretch')
 
-        chart_cbbi = build_cbbi_chart(
+        chart_cbbi = build_signal_chart(
             df_slice,
             threshold_buy=params["threshold_buy"],
             threshold_sell=params["threshold_sell"],
@@ -520,7 +520,7 @@ if "sim_result" in st.session_state:
                 "BTC Price":      format_currency,
                 "Amount (USD)":   format_currency,
                 "BTC Amount":     "{:,.6f}",
-                "CBBI Index":     "{:.1f}%",
+                "Signal Index":     "{:.1f}%",
                 "Cash After":     format_currency,
                 "BTC Held After": "{:,.6f}",
                 "Equity After":   format_currency,
@@ -538,7 +538,7 @@ if "sim_result" in st.session_state:
                 "BTC Price":     st.column_config.TextColumn("BTC Price"),
                 "Amount (USD)":  st.column_config.TextColumn("Amount (USD)"),
                 "BTC Amount":    st.column_config.TextColumn("Amount (BTC)"),
-                "CBBI Index":    st.column_config.TextColumn("Index",          width="small"),
+                "Signal Index":    st.column_config.TextColumn("Index",          width="small"),
                 "Cash After":    st.column_config.TextColumn("Cash After"),
                 "BTC Held After":st.column_config.TextColumn("BTC After"),
                 "Equity After":  st.column_config.TextColumn("Equity"),

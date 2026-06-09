@@ -1,11 +1,11 @@
 # System Architecture & Technical Specification
-## CBBI Strategy Lab — Interactive Backtesting Web Application
+## BTC Strategy Lab — Interactive Backtesting Web Application
 
 **Version:** 2.0  
 **Date:** April 2026  
 **Author:** Solo Developer  
 **Status:** Production (Deployed)  
-**Repo:** `cbbi-strategy-lab`  
+**Repo:** `btc-strategy-lab`  
 **Last Updated:** 2026-04-28 — Trolololo decoupled from CBBI API via Dynamic Channel Normalization; live data via yfinance added (see §2.1, §2.5)
 
 ---
@@ -23,7 +23,7 @@ Phases 1–3 of the research have been completed in a separate private repositor
 - **Phase 3:** Optimization engine — Grid Search across ~1.29M parameter combinations, two scenarios
 - **Phase 4 Extension (2026-04-28):** Live data mode added — app fetches current BTC prices from Yahoo Finance and computes Trolololo independently in real time, no CBBI API dependency.
 
-This repository (`cbbi-strategy-lab`) contains **only the web application**. The research pipeline code lives in the core research repository and is not reproduced here. Only its outputs (processed data + results JSON) are imported.
+This repository (`btc-strategy-lab`) contains **only the web application**. The research pipeline code lives in the core research repository and is not reproduced here. Only its outputs (processed data + results JSON) are imported.
 
 ### 1.2 Application Purpose
 
@@ -56,7 +56,7 @@ The application uses **Trolololo (Logarithmic Regression / Rainbow Chart)** as t
 ### 2.2 Repository Structure
 
 ```
-cbbi-strategy-lab/
+btc-strategy-lab/
 ├── app.py                          # Streamlit entry point (Home / nav hub)
 ├── ARCHITECTURE.md                 # This document
 ├── README.md                       # Public-facing repo description
@@ -149,8 +149,8 @@ pages/1_Simulator.py          render metrics cards + 3 charts + trade log table
 **Purpose:** Landing page and navigation hub.
 
 **Content:**
-- App title: "CBBI Strategy Lab"
-- Subtitle: "Bitcoin backtesting powered by CBBI on-chain indicators"
+- App title: "BTC Strategy Lab"
+- Subtitle: "Bitcoin backtesting powered by on-chain indicators"
 - What is CBBI — 2-sentence explainer
 - What is Trolololo — 1-sentence explainer (the signal used throughout)
 - Two CTA cards → Simulator | Research Results

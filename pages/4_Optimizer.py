@@ -46,7 +46,7 @@ n_combos = len(BUY_THRESHOLDS) * len(SELL_THRESHOLDS) * len(ALLOC_STEPS) ** 2
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Optimizer — CBBI Strategy Lab",
+    page_title="Optimizer — BTC Strategy Lab",
     page_icon="⚙️",
     layout="wide",
 )
@@ -72,7 +72,7 @@ st.markdown("""
 <div style="margin-bottom:1.5rem">
   <div style="font-size:0.78rem;font-weight:700;letter-spacing:0.14em;
               text-transform:uppercase;color:var(--accent);margin-bottom:0.3rem">
-    CBBI STRATEGY LAB
+    BTC STRATEGY LAB
   </div>
   <h1 style="font-size:2rem;font-weight:800;margin:0 0 0.4rem 0;line-height:1.15">
     ⚙️ Dynamic Parameter Optimizer
@@ -275,9 +275,9 @@ st.markdown("""
 After running the optimizer:
 
 1. **Go to the Simulator page** (`← Simulator` in the sidebar)
-2. **Select `🟢 Live CBBI API`** as your data source
+2. **Select `🟢 Live Data`** as your data source
 3. **Set parameters manually** from the table above (e.g. Max Return recommendation)
-4. Run the simulation — you're now using parameters that reflect today's live CBBI formula
+4. Run the simulation — you're now using parameters optimized against today's live data
 
 > 💡 The optimizer targets the **in-sample period** (before your split date) to prevent overfitting.
 > You can then validate OOS performance directly in the Simulator using the Live API data.
