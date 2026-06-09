@@ -67,7 +67,7 @@ st.markdown(
       <span class="page-title">&#8383; CBBI Strategy Lab</span>
     </div>
     <p class="page-subtitle">
-      Bitcoin backtesting simulator powered by CBBI on-chain indicators &middot; Academic research tool
+      Bitcoin backtesting simulator powered by on-chain indicator analysis &middot; Academic research tool
     </p>
     <div class="hero-tagline">
       Test, validate, and explore Bitcoin timing strategies &mdash;
@@ -197,20 +197,21 @@ st.divider()
 col_a, col_b = st.columns([1, 1], gap="large")
 
 with col_a:
-    st.markdown("### What is CBBI?")
+    st.markdown("### About This Research")
     # fix #9: max-width: 65ch on paragraph text to control line length
     st.markdown(
         """
         <p style="max-width:65ch;line-height:1.68;color:#2d3f50;font-size:0.95rem;margin-bottom:0.85rem;">
-          The <strong>Crypto Bitcoin Bull/Bear Index (CBBI)</strong> is a composite on-chain indicator
-          that combines 9 sub-indicators to score the current Bitcoin market cycle on a scale of 0&nbsp;to&nbsp;100.
-          A score near <strong>0</strong> signals deep accumulation&nbsp;/ bear market conditions.
-          A score near <strong>100</strong> signals peak euphoria&nbsp;/ distribution conditions.
+          This app is the interactive deliverable of an academic research project that asks:
+          <strong>which Bitcoin on-chain indicator makes the best trading signal, and what are its optimal parameters?</strong>
+          Ten popular indicators (Pi Cycle Top, MVRV Z-Score, Puell Multiple, RUPL, and others from the
+          <strong>CBBI dataset</strong>) were analyzed using Spearman correlation across 5 lag windows.
         </p>
         <p style="max-width:65ch;line-height:1.68;color:#2d3f50;font-size:0.95rem;">
-          This app uses the <strong>Trolololo indicator</strong> (Logarithmic Regression&nbsp;/ Rainbow Chart)
-          as the primary trading signal &mdash; identified as the most statistically significant
-          sub-indicator through Spearman correlation analysis across 5 lag windows on 2012&ndash;2020 data.
+          The winner: <strong>Logarithmic Regression</strong> (Trolololo&nbsp;/ Rainbow Chart),
+          with a composite score of 0.6557 and Spearman &rho;&nbsp;=&nbsp;&minus;0.4261 at 90-day lag.
+          This indicator is computed independently from BTC price data via Dynamic Channel Normalization
+          &mdash; no dependency on third-party APIs.
         </p>
         """,
         unsafe_allow_html=True,
