@@ -15,11 +15,11 @@
 ### 1.1 Background
 
 This web application is the public-facing deliverable of Phase 4 of the academic research project:
-**"Optimizing Threshold Parameters and Asset Allocation Based on CBBI Indicators to Maximize Bitcoin Portfolio Performance"** (PKL Research, 2026).
+**"Optimalisasi Parameter Trading Bitcoin Menggunakan Grid Search pada Tiga Metrik Evaluasi Berbasis Indikator Logarithmic Regression"** (PKL Research, 2026).
 
 Phases 1–3 of the research have been completed in a separate private repository (`the core research repository`):
-- **Phase 1:** Data pipeline — master dataset built from CBBI official XLSX (8 indicators + composite score) + yfinance BTC open prices. **Trolololo is computed independently** via `src/data/trolololo.py` (Dynamic Channel Normalization on BTC-USD close prices), eliminating *Index Revision Bias*.
-- **Phase 2:** Indicator selection — Trolololo (Logarithmic Regression / Rainbow Chart) identified as the most statistically significant signal indicator via Spearman correlation analysis
+- **Phase 1:** Data pipeline — master dataset built from 10 on-chain indicators (CBBI dataset) + yfinance BTC open prices. **Logarithmic Regression (Trolololo) is computed independently** via `src/data/trolololo.py` (Dynamic Channel Normalization on BTC-USD close prices), eliminating *Index Revision Bias*.
+- **Phase 2:** Indicator selection — Logarithmic Regression (Trolololo) identified as the most statistically significant signal indicator (composite score 0.6557, Spearman ρ = −0.4261 at 90-day lag) among 10 on-chain indicators
 - **Phase 3:** Optimization engine — Grid Search across ~1.29M parameter combinations, two scenarios
 - **Phase 4 Extension (2026-04-28):** Live data mode added — app fetches current BTC prices from Yahoo Finance and computes Trolololo independently in real time, no CBBI API dependency.
 

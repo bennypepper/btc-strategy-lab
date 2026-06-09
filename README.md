@@ -1,9 +1,9 @@
 # CBBI Strategy Lab
 
-Interactive Bitcoin backtesting simulator powered by CBBI on-chain indicators.
+Interactive Bitcoin backtesting simulator powered by on-chain indicators and Logarithmic Regression signal analysis.
 
 Built as the public deliverable of the research project:
-"Optimizing Threshold Parameters and Asset Allocation Based on CBBI Indicators to Maximize Bitcoin Portfolio Performance" (PKL Research, 2026).
+"Optimalisasi Parameter Trading Bitcoin Menggunakan Grid Search pada Tiga Metrik Evaluasi Berbasis Indikator Logarithmic Regression" (PKL Research, 2026).
 
 [![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://cbbi-strategy-lab.streamlit.app)
 
@@ -20,7 +20,7 @@ Built as the public deliverable of the research project:
 
 ## Signal Indicator
 
-This application uses Trolololo (Logarithmic Regression / Rainbow Chart) as the primary trading signal. This indicator was identified as the most statistically significant CBBI sub-indicator based on Spearman correlation analysis.
+This application uses **Logarithmic Regression** (also known as Trolololo / Bitcoin Rainbow Chart) as the primary trading signal. This indicator was identified as the most statistically significant among 10 on-chain indicators analyzed, based on Spearman correlation analysis (composite score 0.6557, ρ = −0.4261 at 90-day lag). It is computed independently from BTC price data via Dynamic Channel Normalization, with no dependency on third-party APIs.
 
 ## Running Locally
 
@@ -63,8 +63,9 @@ This application is for educational and academic purposes only. All results are 
 ## Research Context
 
 - **Phase 1-3 repository:** Public research repo (https://github.com/bennypepper/cbbi-optimization-research)
-- **Data sources:** CBBI official API (cbbi.info) and Yahoo Finance BTC-USD
-- **Optimization:** Grid Search across 1,293,750 parameter combinations
+- **Research title:** Optimalisasi Parameter Trading Bitcoin Menggunakan Grid Search pada Tiga Metrik Evaluasi Berbasis Indikator Logarithmic Regression
+- **Data sources:** CBBI dataset (10 on-chain indicators) + Yahoo Finance BTC-USD. Logarithmic Regression computed independently.
+- **Optimization:** Grid Search across 1,293,750 parameter combinations × 3 evaluation metrics
 - **Framework:** Undergraduate Research (PKL), 2026
 
 ## License
