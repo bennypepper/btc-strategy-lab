@@ -1,11 +1,11 @@
-# CBBI Strategy Lab
+# BTC Strategy Lab
 
 Interactive Bitcoin backtesting simulator powered by on-chain indicators and Logarithmic Regression signal analysis.
 
 Built as the public deliverable of the research project:
 "Optimalisasi Parameter Trading Bitcoin Menggunakan Grid Search pada Tiga Metrik Evaluasi Berbasis Indikator Logarithmic Regression" (PKL Research, 2026).
 
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://cbbi-strategy-lab.streamlit.app)
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://btc-strategy-lab.streamlit.app)
 
 ---
 
