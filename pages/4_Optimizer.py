@@ -202,7 +202,7 @@ with st.expander("⚙️ Advanced Settings", expanded=False):
         help="Data before this date is used for in-sample optimization. OOS data is never seen during training.",
     )
     initial_cash = st.number_input(
-        "Initial Capital (USD)", value=100_000, step=10_000, min_value=1_000,
+        "Initial Capital (USD)", value=100_000, step=10_000, min_value=1,
     )
     fee_rate = st.number_input(
         "Trading Fee Rate", value=0.001, step=0.0005, format="%.4f", min_value=0.0,

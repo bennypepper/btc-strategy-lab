@@ -233,7 +233,7 @@ with col_input:
     # Initial capital
     initial_cash = st.number_input(
         "💵 Initial Capital (USD)",
-        min_value=1_000, max_value=10_000_000,
+        min_value=1, max_value=10_000_000,
         value=100_000, step=1_000,
         format="%d",
     )
