@@ -24,7 +24,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
-        "About": "BTC Strategy Lab — Bitcoin backtesting simulator built on academic research. Not financial advice.",
+        "About": "BTC Strategy Lab, a Bitcoin backtesting simulator built on academic research. Not financial advice.",
     },
 )
 
@@ -70,8 +70,8 @@ st.markdown(
       Bitcoin backtesting simulator powered by on-chain indicator analysis &middot; Academic research tool
     </p>
     <div class="hero-tagline">
-      Test, validate, and explore Bitcoin timing strategies &mdash;
-      1.29&thinsp;M optimization trials, 14 years of on-chain data, zero lookahead bias.
+      Test, validate, and explore Bitcoin timing strategies using
+      1.29&thinsp;M optimization trials and 14 years of on-chain data with zero lookahead bias.
     </div>
     """,
     unsafe_allow_html=True,
@@ -103,9 +103,9 @@ elif latest_cbbi < 85:
 st.markdown(
     f"""
     <div style="display:flex; flex-wrap:wrap; gap:1.25rem; margin-top:1.5rem; margin-bottom:2.5rem;">
-      <!-- Card 1: Trolololo Index -->
+      <!-- Card 1: Logarithmic Regression Index -->
       <div style="flex:1; min-width:250px; background:#ffffff; border-radius:0; padding:1.5rem; border:2px solid #c9c2b8; box-shadow:5px 5px 0px 0px rgba(33,52,72,0.15);">
-        <div style="font-family:'Inter', sans-serif; font-size:0.75rem; font-weight:700; color:#547792; letter-spacing:0.08em; margin-bottom:0.5rem; text-transform:uppercase;">Trolololo Index</div>
+        <div style="font-family:'Inter', sans-serif; font-size:0.75rem; font-weight:700; color:#547792; letter-spacing:0.08em; margin-bottom:0.5rem; text-transform:uppercase;">Regression Index</div>
         <div style="font-family:'Space Grotesk', sans-serif; font-size:2.8rem; font-weight:800; color:#213448; line-height:1; margin-bottom:0.75rem; letter-spacing:-0.03em;">{latest_cbbi:.1f}%</div>
         <div style="display:inline-block; font-family:'Inter', sans-serif; background:{zone_color}12; color:{zone_color}; padding:0.25rem 0.75rem; font-size:0.75rem; font-weight:700; margin-bottom:1.5rem; text-transform:uppercase; border:2px solid {zone_color}; box-shadow:2px 2px 0px 0px {zone_color}40;">
           {zone_label}
@@ -164,7 +164,7 @@ with col2:
           <div class="nav-card">
             <div class="nav-card-icon">{ICON_CHART_BARS}</div>
             <h3>Research Results</h3>
-            <p>Explore Phase&nbsp;3 optimization outcomes &mdash; both academic
+            <p>Explore Phase&nbsp;3 optimization outcomes, including academic
                validation and maximum exploration scenarios</p>
             <div class="nav-card-cta">View Research &rarr;</div>
           </div>
@@ -189,6 +189,21 @@ with col3:
         unsafe_allow_html=True,
     )
 
+# ── Logarithmic Regression Price Bands Chart (Homepage) ───────────────────────
+try:
+    from core.charts import build_regression_bands_chart
+    st.markdown("<h3 style='margin-top: 2.5rem; margin-bottom: 0.1rem; font-family: \"Space Grotesk\", sans-serif; font-weight: 700; color: #213448;'>Logarithmic Regression Bands</h3>", unsafe_allow_html=True)
+    st.markdown(
+        "<p style='color:#547792; font-size:0.9rem; margin-top:0rem; margin-bottom:0rem; font-family:\"Work Sans\", sans-serif;'>"
+        "Historical Bitcoin price plotted on a log scale with fitted logarithmic regression model bands (Top and Bottom)."
+        "</p>",
+        unsafe_allow_html=True
+    )
+    fig_home = build_regression_bands_chart(df_live)
+    st.plotly_chart(fig_home, use_container_width=True)
+except Exception as e:
+    st.error(f"Error loading homepage chart: {e}")
+
 # fix #12: divider now has margin: 2.5rem via global CSS
 st.divider()
 
@@ -208,10 +223,10 @@ with col_a:
           <strong>CBBI dataset</strong>) were analyzed using Spearman correlation across 5 lag windows.
         </p>
         <p style="max-width:65ch;line-height:1.68;color:#2d3f50;font-size:0.95rem;">
-          The winner: <strong>Logarithmic Regression</strong> (Trolololo&nbsp;/ Rainbow Chart),
+          The winner: <strong>Logarithmic Regression</strong> (Rainbow Chart),
           with a composite score of 0.6557 and Spearman &rho;&nbsp;=&nbsp;&minus;0.4261 at 90-day lag.
-          This indicator is computed independently from BTC price data via Dynamic Channel Normalization
-          &mdash; no dependency on third-party APIs.
+          This indicator is computed independently from BTC price data via Dynamic Channel Normalization,
+          avoiding any dependency on third-party APIs.
         </p>
         """,
         unsafe_allow_html=True,
@@ -221,11 +236,11 @@ with col_a:
     st.markdown(
         """
         <ol style="max-width:65ch;line-height:1.75;color:#2d3f50;font-size:0.95rem;padding-left:1.3rem;">
-          <li><strong>Set a Buy Threshold</strong> &mdash; when Trolololo drops below this,
+          <li><strong>Set a Buy Threshold</strong>: when Logarithmic Regression drops below this,
               the strategy buys a fixed&nbsp;% of your cash</li>
-          <li><strong>Set a Sell Threshold</strong> &mdash; when Trolololo rises above this,
+          <li><strong>Set a Sell Threshold</strong>: when Logarithmic Regression rises above this,
               the strategy sells a fixed&nbsp;% of your BTC</li>
-          <li><strong>Between thresholds</strong> &mdash; the strategy holds (no action)</li>
+          <li><strong>Between thresholds</strong>: the strategy holds (no action)</li>
           <li>Execution happens at the <strong>next day&rsquo;s open price</strong> (T+1)
               to prevent lookahead bias</li>
         </ol>
@@ -245,7 +260,7 @@ with col_b:
     # fix #2 & #6: clamp font-size + word-break in global CSS prevents truncation
     st.metric("Data Coverage", f"{min_d} → {max_d}")
     st.metric("Total Trading Days", f"{n_rows:,}")
-    st.metric("Signal Indicator", "Trolololo (Log Regression)")
+    st.metric("Signal Indicator", "Logarithmic Regression Index")
 
     rr = load_research_results()
     st.metric(
@@ -257,8 +272,8 @@ with col_b:
         st.markdown(
             f"""
             <div class="info-strip" style="background:#edf4f7; border-left:4px solid #0a7c6e; padding:1rem; border-radius:0; color:#213448; font-family:'Work Sans', sans-serif;">
-            <span style="color:#0a7c6e;font-weight:700;">&#128308; Live Data Connected</span> &mdash; Using latest data up to <b>{max_d}</b>.<br>
-            Trolololo is computed independently from Yahoo Finance BTC prices via logarithmic regression.
+            <span style="color:#0a7c6e;font-weight:700;">&#128308; Live Data Connected</span>: Using latest data up to <b>{max_d}</b>.<br>
+            Logarithmic Regression is computed independently from Yahoo Finance BTC prices.
             </div>
             """,
             unsafe_allow_html=True,
@@ -267,7 +282,7 @@ with col_b:
         st.markdown(
             f"""
             <div class="info-strip" style="background:#fffbeb; border-left:4px solid #d97706; padding:1rem; border-radius:0; color:#78350f; font-family:'Work Sans', sans-serif;">
-            <span style="color:#d97706;font-weight:700;">&#9888;&#65039; Offline Mode</span> &mdash; Live data fetch failed. Displaying static data frozen at <b>{max_d}</b>.
+            <span style="color:#d97706;font-weight:700;">&#9888;&#65039; Offline Mode</span>: Live data fetch failed. Displaying static data frozen at <b>{max_d}</b>.
             </div>
             """,
             unsafe_allow_html=True,

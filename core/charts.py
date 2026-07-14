@@ -215,7 +215,7 @@ def build_equity_chart(result: SimulationResult) -> go.Figure:
                   shape="spline", smoothing=1.0),
         mode="lines",
         opacity=0.75,
-        hovertemplate="%{x|%Y-%m-%d} &nbsp;<b>%{y:$,.0f}</b><extra>Buy & Hold</extra>",
+        hovertemplate="Buy & Hold: <b>%{y:$,.0f}</b><extra></extra>",
     ))
 
     # Strategy line with fill from B&H line (tonexty = fill between these two)
@@ -227,7 +227,7 @@ def build_equity_chart(result: SimulationResult) -> go.Figure:
         fill="tonexty",
         fillcolor="rgba(10,124,110,0.08)",
         mode="lines",
-        hovertemplate="%{x|%Y-%m-%d} &nbsp;<b>%{y:$,.0f}</b><extra>Strategy</extra>",
+        hovertemplate="Strategy Equity: <b>%{y:$,.0f}</b><extra></extra>",
     ))
 
     # ── Trade markers on strategy line ────────────────────────────────────────
@@ -238,11 +238,11 @@ def build_equity_chart(result: SimulationResult) -> go.Figure:
         tlog_first = tlog.loc[tlog["Action"] != tlog["Action"].shift()].copy()
         tlog_rest = tlog.loc[tlog["Action"] == tlog["Action"].shift()].copy()
 
-        for trades, symbol, color, label, visible in [
-            (tlog_first[tlog_first["Action"] == "BUY"],  "triangle-up",   COLORS["buy_marker"],  "Buy", True),
-            (tlog_first[tlog_first["Action"] == "SELL"], "triangle-down", COLORS["sell_marker"], "Sell", True),
-            (tlog_rest[tlog_rest["Action"] == "BUY"],    "circle",        COLORS["buy_marker"],  "Subsequent Buys", "legendonly"),
-            (tlog_rest[tlog_rest["Action"] == "SELL"],   "circle",        COLORS["sell_marker"], "Subsequent Sells", "legendonly"),
+        for trades, symbol, color, label, show_leg, m_size in [
+            (tlog_first[tlog_first["Action"] == "BUY"],  "triangle-up",   COLORS["buy_marker"],  "Buy Signal", True, 11),
+            (tlog_first[tlog_first["Action"] == "SELL"], "triangle-down", COLORS["sell_marker"], "Sell Signal", True, 11),
+            (tlog_rest[tlog_rest["Action"] == "BUY"],    "circle",        COLORS["buy_marker"],  "Subsequent Buys", False, 6),
+            (tlog_rest[tlog_rest["Action"] == "SELL"],   "circle",        COLORS["sell_marker"], "Subsequent Sells", False, 6),
         ]:
             if trades.empty:
                 continue
@@ -251,20 +251,21 @@ def build_equity_chart(result: SimulationResult) -> go.Figure:
             trades = trades[trades["value"] > 0]
             if trades.empty:
                 continue
+            
+            customdata = np.stack((trades["BTC Price"].values, trades["Amount (USD)"].values), axis=-1)
+            act_name = "Buy" if "BUY" in trades["Action"].values[0] else "Sell"
+            
             fig.add_trace(go.Scatter(
                 x=trades["Date"], y=trades["value"],
                 name=label,
                 mode="markers",
-                visible=visible,
+                showlegend=show_leg,
+                customdata=customdata,
+                hovertemplate=f"{act_name}: <b>%{{customdata[1]:$,.0f}}</b> @ <b>%{{customdata[0]:$,.0f}}</b><extra></extra>",
                 marker=dict(
                     symbol=symbol, color=color,
-                    size=6 if visible is True else 4, opacity=0.85 if visible is True else 0.5,
+                    size=m_size, opacity=0.85,
                     line=dict(width=0),
-                ),
-                hovertemplate=(
-                    "%{x|%Y-%m-%d}<br>"
-                    "Portfolio: <b>%{y:$,.0f}</b>"
-                    f"<extra>{label.upper()}</extra>"
                 ),
             ))
 
@@ -334,6 +335,7 @@ def build_signal_chart(
         mode="lines", line=dict(width=0),
         fill="tonexty",
         fillcolor=COLORS["buy_zone_fill"],
+        showlegend=False,
         hoverinfo="skip",
     ))
 
@@ -349,19 +351,20 @@ def build_signal_chart(
         mode="lines", line=dict(width=0),
         fill="tonexty",
         fillcolor=COLORS["sell_zone_fill"],
+        showlegend=False,
         hoverinfo="skip",
     ))
 
     # ── Signal line ────────────────────────────────────────────────────────────
     fig.add_trace(go.Scatter(
         x=sig_df["date"], y=sig_df["signal"],
-        name="Trolololo Index",
+        name="Regression Index",
         mode="lines",
         line=dict(
             color=COLORS["signal_line"], width=1.6,
             shape="spline", smoothing=0.6,
         ),
-        hovertemplate="%{x|%Y-%m-%d} &nbsp;<b>%{y:.1f}</b><extra>Trolololo</extra>",
+        hovertemplate="Regression Index: <b>%{y:.1f}%</b><extra></extra>",
     ))
 
     # ── Threshold dashed horizontal lines ─────────────────────────────────────
@@ -390,34 +393,35 @@ def build_signal_chart(
 
         sig_idx = sig_df.set_index("date")["signal"]
 
-        for subset, symbol, color, label, visible in [
-            (tlog_first[tlog_first["Action"] == "BUY"],  "triangle-up",   COLORS["buy_marker"],  "Buy Signal", True),
-            (tlog_first[tlog_first["Action"] == "SELL"], "triangle-down", COLORS["sell_marker"], "Sell Signal", True),
-            (tlog_rest[tlog_rest["Action"] == "BUY"],    "circle",        COLORS["buy_marker"],  "Subsequent Buys", "legendonly"),
-            (tlog_rest[tlog_rest["Action"] == "SELL"],   "circle",        COLORS["sell_marker"], "Subsequent Sells", "legendonly"),
+        for subset, symbol, color, label, show_leg, m_size in [
+            (tlog_first[tlog_first["Action"] == "BUY"],  "triangle-up",   COLORS["buy_marker"],  "Buy Signal", True, 11),
+            (tlog_first[tlog_first["Action"] == "SELL"], "triangle-down", COLORS["sell_marker"], "Sell Signal", True, 11),
+            (tlog_rest[tlog_rest["Action"] == "BUY"],    "circle",        COLORS["buy_marker"],  "Subsequent Buys", False, 6),
+            (tlog_rest[tlog_rest["Action"] == "SELL"],   "circle",        COLORS["sell_marker"], "Subsequent Sells", False, 6),
         ]:
             if subset.empty:
                 continue
             subset = subset.copy()
             subset["signal"] = sig_idx.reindex(subset["Date"], method="nearest").values
+            
+            customdata = np.stack((subset["BTC Price"].values, subset["Amount (USD)"].values), axis=-1)
+            act_name = "Buy" if "BUY" in subset["Action"].values[0] else "Sell"
+            
             fig.add_trace(go.Scatter(
                 x=subset["Date"], y=subset["signal"],
                 name=label, mode="markers",
-                visible=visible,
+                showlegend=show_leg,
+                customdata=customdata,
+                hovertemplate=f"{act_name}: <b>%{{customdata[1]:$,.0f}}</b> @ <b>%{{customdata[0]:$,.0f}}</b><extra></extra>",
                 marker=dict(
                     symbol=symbol, color=color,
-                    size=6 if visible is True else 4, opacity=0.85 if visible is True else 0.5,
+                    size=m_size, opacity=0.85,
                     line=dict(width=0),
-                ),
-                hovertemplate=(
-                    "%{x|%Y-%m-%d}<br>"
-                    f"Signal: <b>%{{y:.1f}}</b>"
-                    f"<extra>{label}</extra>"
                 ),
             ))
 
     layout = _base_layout(
-        f"Trolololo Index with Signals  —  Buy ≤ {threshold_buy}  |  Sell ≥ {threshold_sell}",
+        f"Regression Index with Signals  —  Buy ≤ {threshold_buy}  |  Sell ≥ {threshold_sell}",
         height=320,
         extra_margin_t=100,
     )
@@ -428,7 +432,7 @@ def build_signal_chart(
         zeroline=False, showline=False,
         tickvals=[0, 20, 40, 60, 80, 100],
         tickfont=dict(family=_FONT, size=11, color=_TEXT),
-        title=dict(text="Trolololo Index (0–100)", font=dict(color=_TEXT, size=11)),
+        title=dict(text="Regression Index (0–100)", font=dict(color=_TEXT, size=11)),
     )
     fig.update_layout(**layout)
     return fig
@@ -780,3 +784,107 @@ def build_comparison_chart(results: dict) -> go.Figure:
         ann.font.update(size=12, color=_TEXT, family=_FONT)
 
     return fig
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Chart 7: Logarithmic Regression Price Bands
+# ══════════════════════════════════════════════════════════════════════════════
+
+def build_regression_bands_chart(df: pd.DataFrame) -> go.Figure:
+    """
+    Log-scale price chart with regression top/bottom model bands (Rainbow Chart bands).
+    """
+    from core.trolololo import get_cycle_marks, ORIGIN_DATE, TOP_SLOPE, TOP_OFFSET, BOTTOM_SLOPE, BOTTOM_OFFSET, INTERCEPT, FIRST_HIGH_CORRECTION
+    from scipy import stats
+    
+    df_clean = df.dropna(subset=["btc_close"]).copy()
+    dates = df_clean.index
+    prices = df_clean["btc_close"].values.astype(float)
+    n = len(df_clean)
+    
+    d_raw = (dates - ORIGIN_DATE).days.values.astype(float)
+    valid = (d_raw > 0) & (prices > 0)
+    
+    price_log = np.full(n, np.nan)
+    price_log[valid] = np.log(prices[valid])
+    
+    LN10 = np.log(10.0)
+    top_base = np.full(n, np.nan)
+    bottom_base = np.full(n, np.nan)
+    top_base[valid] = LN10 * (TOP_SLOPE * np.log(d_raw[valid] + TOP_OFFSET) - INTERCEPT)
+    bottom_base[valid] = LN10 * (BOTTOM_SLOPE * np.log(d_raw[valid] + BOTTOM_OFFSET) - INTERCEPT)
+    
+    res_top = price_log - top_base
+    res_bottom = price_log - bottom_base
+    
+    high_marks, low_marks = get_cycle_marks(df_clean["btc_close"])
+    hi_idx = np.where(high_marks)[0]
+    lo_idx = np.where(low_marks)[0]
+    hi_idx = hi_idx[np.isfinite(res_top[hi_idx])]
+    lo_idx = lo_idx[np.isfinite(res_bottom[lo_idx])]
+    
+    all_pos = np.arange(n, dtype=float)
+    
+    if len(hi_idx) < 2 or len(lo_idx) < 2:
+        top_band = np.exp(top_base)
+        bottom_band = np.exp(bottom_base)
+    else:
+        hi_y = res_top[hi_idx].copy()
+        hi_y[0] *= FIRST_HIGH_CORRECTION
+        slope_top, intercept_top, _, _, _ = stats.linregress(hi_idx.astype(float), hi_y)
+        top_drift = slope_top * all_pos + intercept_top
+        
+        slope_bot, intercept_bot, _, _, _ = stats.linregress(lo_idx.astype(float), res_bottom[lo_idx])
+        bottom_drift = slope_bot * all_pos + intercept_bot
+        
+        top_band = np.exp(top_base + top_drift)
+        bottom_band = np.exp(bottom_base + bottom_drift)
+        
+    fig = go.Figure()
+    
+    # Bottom Band
+    fig.add_trace(go.Scatter(
+        x=dates, y=bottom_band,
+        name="Bottom Band",
+        line=dict(color="#16a34a", width=1.5, dash="dash"),
+        mode="lines",
+        hovertemplate="Bottom Band: <b>%{y:$,.0f}</b><extra></extra>",
+    ))
+    
+    # Top Band
+    fig.add_trace(go.Scatter(
+        x=dates, y=top_band,
+        name="Top Band",
+        line=dict(color="#dc2626", width=1.5, dash="dash"),
+        mode="lines",
+        hovertemplate="Top Band: <b>%{y:$,.0f}</b><extra></extra>",
+    ))
+    
+    # BTC Price
+    fig.add_trace(go.Scatter(
+        x=dates, y=prices,
+        name="BTC Price",
+        line=dict(color="#d97706", width=1.8),
+        mode="lines",
+        hovertemplate="BTC Price: <b>%{y:$,.0f}</b><extra></extra>",
+    ))
+    
+    # Log Y axis
+    all_vals = pd.concat([pd.Series(prices), pd.Series(top_band), pd.Series(bottom_band)]).dropna()
+    all_vals = all_vals[all_vals > 0]
+    vmin, vmax = float(all_vals.min()), float(all_vals.max())
+    tick_vals, tick_texts = _log_dollar_ticks(vmin, vmax)
+    
+    layout = _base_layout("", height=420, extra_margin_t=35)
+    layout["xaxis"] = _xaxis()
+    layout["yaxis"] = dict(
+        type="log",
+        tickvals=tick_vals, ticktext=tick_texts,
+        showgrid=True, gridcolor=_GRID, gridwidth=1,
+        zeroline=False, showline=False,
+        tickfont=dict(family=_FONT, size=11, color=_TEXT),
+        title=None,
+    )
+    fig.update_layout(**layout)
+    return fig
+

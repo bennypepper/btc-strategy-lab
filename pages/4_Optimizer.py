@@ -46,7 +46,7 @@ n_combos = len(BUY_THRESHOLDS) * len(SELL_THRESHOLDS) * len(ALLOC_STEPS) ** 2
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Optimizer — BTC Strategy Lab",
+    page_title="Optimizer: BTC Strategy Lab",
     page_icon="⚙️",
     layout="wide",
 )
@@ -80,8 +80,8 @@ st.markdown("""
   </h1>
   <p style="font-size:0.95rem;color:var(--muted);max-width:660px;margin:0">
     Re-optimize strategy parameters against <strong>fresh live BTC price data</strong>
-    (Yahoo Finance) with Trolololo computed via independent logarithmic regression.
-    No reliance on the CBBI API — signal values are deterministic and reproducible.
+    (Yahoo Finance) with the signal computed via independent logarithmic regression.
+    No reliance on the CBBI API: signal values are deterministic and reproducible.
   </p>
 </div>
 """, unsafe_allow_html=True)
@@ -89,9 +89,9 @@ st.markdown("""
 # ── Context banner ────────────────────────────────────────────────────────────
 
 st.info(
-    "📌 **Research Scope Note** — The academic backtest used a frozen snapshot. "
+    "📌 **Research Scope Note**: The academic backtest used a frozen snapshot. "
     "This optimizer is a *practical extension* outside that scope. "
-    "Results here are for live deployment only — not for comparing against the IS/OOS research findings.",
+    "Results here are for live deployment only, not for comparing against the IS/OOS research findings.",
     icon=None,
 )
 
@@ -214,7 +214,7 @@ st.markdown(
                 border-radius:8px;padding:1rem 1.2rem;margin-bottom:1rem;
                 font-size:0.88rem;color:var(--muted)">
       This will fetch the latest BTC price data from <strong>Yahoo Finance</strong>,
-      compute Trolololo via logarithmic regression, then run
+      compute Logarithmic Regression, then run
       <strong>{n_combos:,} parallel backtests</strong> using Numba JIT compilation.
       Typical runtime: <strong>5&ndash;20 seconds</strong> depending on your CPU.
     </div>""",
@@ -254,8 +254,8 @@ if run_btn:
         if result.status == "success":
             status_text.empty()
             st.success(
-                f"✅ Optimization complete — {result.total_combinations:,} combinations "
-                f"in **{result.elapsed_seconds}s** — results saved to `data/live_optimal_params.json`"
+                f"✅ Optimization complete: {result.total_combinations:,} combinations "
+                f"in **{result.elapsed_seconds}s**. Results were saved to `data/live_optimal_params.json`"
             )
             st.rerun()
 
@@ -278,7 +278,7 @@ After running the optimizer:
 1. **Go to the Simulator page** (`← Simulator` in the sidebar)
 2. **Select `🟢 Live Data`** as your data source
 3. **Set parameters manually** from the table above (e.g. Max Return recommendation)
-4. Run the simulation — you're now using parameters optimized against today's live data
+4. Run the simulation using parameters optimized against today's live data
 
 > 💡 The optimizer targets the **in-sample period** (before your split date) to prevent overfitting.
 > You can then validate OOS performance directly in the Simulator using the Live API data.
@@ -286,7 +286,7 @@ After running the optimizer:
 
 # ── Index revision bias explainer ─────────────────────────────────────────────
 
-with st.expander("📚 Why independent Trolololo calculation was chosen"):
+with st.expander("📚 Why independent calculation was chosen"):
     st.markdown("""
     **Colin's CBBI is not static.** When he adds, removes, or modifies an indicator
     (e.g., removing Stock-to-Flow, reweighting Pi Cycle), his algorithm retroactively
@@ -299,7 +299,7 @@ with st.expander("📚 Why independent Trolololo calculation was chosen"):
     **A 14.5-point drift on one day.** Across thousands of days, this shifts when
     every single buy/sell signal fires.
 
-    **The solution:** Instead of fetching from the CBBI API, the Trolololo indicator
+    **The solution:** Instead of fetching from the CBBI API, the Logarithmic Regression indicator
     is computed **independently** from BTC price data using a power-law logarithmic
     regression model (`core/trolololo.py`). This formula is deterministic — it
     produces the same value for any given BTC price history, regardless of what

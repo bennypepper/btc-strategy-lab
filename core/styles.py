@@ -424,6 +424,48 @@ _GLOBAL_CSS = """
     font-weight: 500 !important;
     line-height: 1.4 !important;
   }
+
+  /* ── Custom CSS Tooltip ── */
+  .custom-tooltip {
+    position: relative;
+    display: inline-block;
+    cursor: help;
+  }
+  .custom-tooltip .custom-tooltiptext {
+    visibility: hidden;
+    width: 240px;
+    background-color: #213448;
+    color: #ffffff;
+    text-align: center;
+    border-radius: 4px;
+    padding: 8px 12px;
+    position: absolute;
+    z-index: 999;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.2s;
+    font-size: 0.75rem;
+    font-family: 'Inter', sans-serif;
+    font-weight: normal !important;
+    line-height: 1.4;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  }
+  .custom-tooltip .custom-tooltiptext::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #213448 transparent transparent transparent;
+  }
+  .custom-tooltip:hover .custom-tooltiptext {
+    visibility: visible;
+    opacity: 1;
+  }
 </style>
 """
 

@@ -50,7 +50,7 @@ Data source: [cbbi.info](https://cbbi.info) · Dataset: 2012-01-01 to 2026-03-15
 
 | Indicator | Internal Name | Description |
 |---|---|---|
-| **Trolololo** ⭐ | `trolololo` | Dynamic Channel Normalization Band — **primary signal used in this app** |
+| **Logarithmic Regression** ⭐ | `trolololo` | Dynamic Channel Normalization Band, which is the primary signal used in this app |
 | Pi Cycle Top | `pi_cycle` | Identifies cycle tops using moving average crossovers |
 | RUPL | `rupl` | Relative Unrealized Profit / Loss across all wallets |
 | RHODL Ratio | `rhodl_ratio` | Compares realized value of coins from different age bands |
@@ -62,17 +62,17 @@ Data source: [cbbi.info](https://cbbi.info) · Dataset: 2012-01-01 to 2026-03-15
 
 ---
 
-### Why Trolololo?
+### Why Logarithmic Regression?
 
 Phase 2 of the underlying research performed **Spearman correlation analysis** across all 10 indicators
 against forward Bitcoin returns at 7, 14, 30, 60, and 90-day lag windows on In-Sample data (2012–2020).
 
-The analysis found that **Trolololo (Dynamic Channel Normalization)** consistently showed the highest
-composite score — combining both correlation strength and statistical significance (p < 0.05) —
+The analysis found that **Logarithmic Regression (Dynamic Channel Normalization)** consistently showed the highest
+composite score by combining correlation strength and statistical significance (p < 0.05)
 across multiple lag windows. This makes it the most reliable indicator for threshold-based signal generation
 within this research framework.
 
-All simulations in this app use Trolololo as the signal column.
+All simulations in this app use Logarithmic Regression as the signal column.
     """)
 
 # ── Tab 2: Strategy Logic ─────────────────────────────────────────────────────
@@ -80,23 +80,22 @@ with tab2:
     st.markdown("""
 ### Strategy Trading Logic
 
-The strategy is a **threshold-based, fractional allocation** system. It does not predict price —
-it reacts to on-chain cycle position.
+The strategy is a **threshold-based, fractional allocation** system. It does not predict price; instead, it reacts to on-chain cycle position.
 
 #### Signal Rules
 
 | Condition | Action | Amount |
 |---|---|---|
-| Trolololo < Buy Threshold | **BUY** | `alloc_buy_pct × current_cash` |
-| Trolololo > Sell Threshold | **SELL** | `alloc_sell_pct × current_btc_holdings` |
-| Buy Threshold ≤ Trolololo ≤ Sell Threshold | **HOLD** | No trade |
+| Index < Buy Threshold | **BUY** | `alloc_buy_pct × current_cash` |
+| Index > Sell Threshold | **SELL** | `alloc_sell_pct × current_btc_holdings` |
+| Buy Threshold ≤ Index ≤ Sell Threshold | **HOLD** | No trade |
 
 #### Execution (Anti-Lookahead Bias)
 
 All trades follow the **T+1 execution rule** to prevent lookahead bias:
 
 ```
-Day T:    Observe Trolololo[T]  →  Decision made (BUY / SELL / HOLD)
+Day T:    Observe Index[T]  →  Decision made (BUY / SELL / HOLD)
 Day T+1:  Execute at BTC Open Price[T+1]
 ```
 
@@ -189,22 +188,22 @@ with tab4:
 
 This application presents results from a 4-phase academic research project.
 
-#### Phase 1 — Data Pipeline
-- **Source 1:** CBBI official dataset (XLSX from cbbi.info) — 8 on-chain indicators + composite score
-- **Source 2:** BTC-USD daily prices from yfinance (`BTC-USD`) — used for `btc_open` (T+1 execution) and `btc_close`
-- **Trolololo *(Updated 2026-04-28)*:** `trolololo` is **not** sourced from the CBBI XLSX. It is computed independently from `btc_close` using **Dynamic Channel Normalization** formula (`core/trolololo.py`). This uses two power-law base channels and adaptive linear drift regression at cycle peaks/troughs. This eliminates *Index Revision Bias* — the risk that retroactive CBBI formula updates silently shift historical signal values.
+#### Phase 1: Data Pipeline
+- **Source 1:** CBBI official dataset (XLSX from cbbi.info) containing 8 on-chain indicators and composite score
+- **Source 2:** BTC-USD daily prices from yfinance (`BTC-USD`) used for `btc_open` (T+1 execution) and `btc_close`
+- **Logarithmic Regression *(Updated 2026-04-28)*:** `trolololo` is **not** sourced from the CBBI XLSX. It is computed independently from `btc_close` using the **Dynamic Channel Normalization** formula (`core/trolololo.py`). This uses two power-law base channels and adaptive linear drift regression at cycle peaks/troughs. This eliminates *Index Revision Bias*, preventing retroactive CBBI formula updates from silently shifting historical signal values.
 - Preprocessing: string parsing → float64, forward fill ≤ 7 days, date alignment
 - Static dataset snapshot: 2012-01-01 to 2026-03-15 (5,161 trading days)
 - Validation: `validate_no_lookahead()` confirmed no backward fill was applied
 
-#### Phase 2 — Indicator Selection
+#### Phase 2: Indicator Selection
 - Method: Spearman correlation (non-parametric, robust to non-normal distributions)
 - Lag windows tested: 7, 14, 30, 60, 90 days forward
 - Analysis restricted to **In-Sample data (2012–2020)** to prevent data leakage
 - Composite score: `0.6 × |max_spearman_rho| + 0.4 × (1 - min_p_value_normalized)`
-- Result: **Trolololo** ranked highest and was selected as the primary signal
+- Result: **Logarithmic Regression** ranked highest and was selected as the primary signal
 
-#### Phase 3 — Optimization Engine
+#### Phase 3: Optimization Engine
 - Algorithm: **Grid Search** (exhaustive, deterministic)
 - Parameter space: `45 × 46 × 25 × 25 = 1,293,750` combinations per run
 - Parallelization: `joblib.Parallel` + Numba JIT (`@njit`) for inner loop
@@ -216,12 +215,12 @@ This application presents results from a 4-phase academic research project.
 |---|---|---|
 | Optimization data | In-Sample (2012–2020) | Full dataset (2012–2026) |
 | Validation | Forward test on OOS (2021–2026) | None |
-| Lookahead bias | ❌ None — strictly isolated | ✅ Present by design |
+| Lookahead bias | ❌ None (strictly isolated) | ✅ Present by design |
 | Research purpose | Prove robustness | Map historical ceiling |
 
 #### In-Sample vs Out-of-Sample
-- **In-Sample (IS)**: 2012-01-01 – 2020-12-31 — data used for optimization
-- **Out-of-Sample (OOS)**: 2021-01-01 – 2026-03-15 — data held back for validation
+- **In-Sample (IS)**: 2012-01-01 – 2020-12-31, data used for optimization
+- **Out-of-Sample (OOS)**: 2021-01-01 – 2026-03-15, data held back for validation
 
 OOS performance is the honest benchmark of how the optimized strategy would have performed
 on data it never "saw" during training. Significant performance degradation from IS to OOS
@@ -269,11 +268,11 @@ may not generalize to future cycles with different characteristics.
 
 **2. Signal Frequency in OOS Period**  
 The Out-of-Sample period (2021–2026) exhibited different dynamics than the In-Sample
-period. The Trolololo indicator spent extended periods in the "hold zone," generating
+period. The Logarithmic Regression indicator spent extended periods in the "hold zone," generating
 fewer trades than during In-Sample. This is a feature of the market cycle, not a system failure.
 
 **3. Data Recency**  
-The static historical dataset snapshot is frozen at **2026-03-15**. The **Live Data mode** (sidebar toggle in the Simulator) fetches current BTC prices from Yahoo Finance and computes Trolololo independently in real time, allowing simulation up to the present date. However, the CBBI sub-indicator columns (pi_cycle, rupl, etc.) in the live dataset reflect the static snapshot values only — these are not updated from the CBBI API.
+The static historical dataset snapshot is frozen at **2026-03-15**. The **Live Data mode** (sidebar toggle in the Simulator) fetches current BTC prices from Yahoo Finance and computes Logarithmic Regression independently in real time, allowing simulation up to the present date. However, the CBBI sub-indicator columns (pi_cycle, rupl, etc.) in the live dataset reflect the static snapshot values only — these are not updated from the CBBI API.
 
 **4. Execution Assumptions**  
 The backtest assumes:
@@ -288,7 +287,7 @@ may still select parameters that are overfit to historical noise patterns.
 The OOS forward test provides evidence of generalizability, but is not proof of robustness.
 
 **6. Index Revision Bias**  
-The CBBI Confidence Score and its sub-indicators are periodically revised retroactively by the index provider when the formula changes (e.g., removal of Stock-to-Flow). Empirical evidence: the same historical date (2021-01-01) showed a **+14.48 point drift** between the research snapshot (63.65) and the live API value (78.13) as of April 17, 2026. The Trolololo signal in this app is computed independently from BTC-USD prices to eliminate this bias for that indicator. However, the remaining 8 indicators loaded from the CBBI XLSX snapshot may still be subject to future drift if the CBBI formula is updated again.
+The CBBI Confidence Score and its sub-indicators are periodically revised retroactively by the index provider when the formula changes (e.g., removal of Stock-to-Flow). Empirical evidence: the same historical date (2021-01-01) showed a **+14.48 point drift** between the research snapshot (63.65) and the live API value (78.13) as of April 17, 2026. The Logarithmic Regression signal in this app is computed independently from BTC-USD prices to eliminate this bias for that indicator. However, the remaining 8 indicators loaded from the CBBI XLSX snapshot may still be subject to future drift if the CBBI formula is updated again.
 
 ---
 
@@ -297,9 +296,9 @@ The CBBI Confidence Score and its sub-indicators are periodically revised retroa
 | Source | Data | Coverage |
 |---|---|---|
 | [CBBI Official (cbbi.info)](https://cbbi.info) | 8 on-chain indicators + Confidence Score (from XLSX) | 2011-06-27 – 2026-03-15 |
-| Yahoo Finance (via yfinance) | BTC-USD daily Close & Open prices + independent Trolololo computation | 2012-01-01 – 2026-03-15 (static snapshot); live mode extends to present |
+| Yahoo Finance (via yfinance) | BTC-USD daily Close & Open prices + independent Logarithmic Regression computation | 2012-01-01 – 2026-03-15 (static snapshot); live mode extends to present |
 
-> **Note on Trolololo:** The Trolololo (Dynamic Channel Normalization) indicator is **computed independently** from BTC-USD close prices — it is not read from the CBBI XLSX. This eliminates *Index Revision Bias* caused by retroactive formula updates on cbbi.info.
+> **Note on Logarithmic Regression:** The Logarithmic Regression (Dynamic Channel Normalization) indicator is **computed independently** from BTC-USD close prices — it is not read from the CBBI XLSX. This eliminates *Index Revision Bias* caused by retroactive formula updates on cbbi.info.
 
 This application is not affiliated with, endorsed by, or connected to CBBI, cbbi.info,
 Cole Garner, Yahoo Finance, or any cryptocurrency exchange.

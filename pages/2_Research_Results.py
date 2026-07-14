@@ -50,18 +50,18 @@ with st.expander("📖 Understanding the Two Scenarios", expanded=False):
     c1, c2 = st.columns(2)
     with c1:
         st.markdown("""
-**Scenario 1 — Academic Validation**
+**Scenario 1: Academic Validation**
 - Optimization runs on **2012–2020** data only (In-Sample)
 - Optimal parameters are then tested on **2021–2026** data (Out-of-Sample)
-- No lookahead bias — OOS data was never seen during optimization
+- No lookahead bias: OOS data was never seen during optimization
 - Purpose: prove strategy robustness and generalizability
-- Signal: Trolololo (Dynamic Channel Normalization)
+- Signal: Logarithmic Regression
         """)
     with c2:
         st.markdown("""
-**Scenario 2 — Maximum Exploration**
+**Scenario 2: Maximum Exploration**
 - Optimization runs on the **full 2012–2026** dataset
-- No train/test split — all data used for optimization
+- No train/test split: all data used for optimization
 - ⚠ Contains lookahead bias **by design**
 - Purpose: map the absolute performance ceiling of the indicator
 - Useful as a reference point, not a tradeable strategy
@@ -134,12 +134,12 @@ def _render_scenario1_tab(obj_key: str):
         if oos_data["trade_count"] == 0:
             st.markdown(
                 "<div style='background:rgba(10,124,110,0.08); border-left:4px solid #0a7c6e; padding:0.85rem 1rem; margin-top:0.5rem; font-size:0.84rem; line-height:1.6;'>"
-                "<b>📊 No OOS trades triggered — expected with independent Trolololo</b><br>"
-                f"The optimal buy threshold is <b>{int(is_data['threshold_buy'])}</b> (Trolololo ≤ {int(is_data['threshold_buy'])}%). "
-                "With the independently computed Trolololo (log regression on BTC-USD prices, re-calibrated 2026-04-27), "
+                "<b>📊 No OOS trades triggered, as expected with independent Logarithmic Regression</b><br>"
+                f"The optimal buy threshold is <b>{int(is_data['threshold_buy'])}</b> (Index ≤ {int(is_data['threshold_buy'])}%). "
+                "With the independently computed Logarithmic Regression (log regression on BTC-USD prices, re-calibrated 2026-04-27), "
                 "the signal never fell below this threshold during the OOS period (2021–2026). "
                 "No buy signals means no sell signals, so all metrics show 0. "
-                "This is a research finding — the Min Drawdown strategy's extreme selectivity prevents any activity "
+                "This is a research finding: the Min Drawdown strategy's extreme selectivity prevents any activity "
                 "in the bull/sideways market conditions of 2021–2026."
                 "</div>",
                 unsafe_allow_html=True,
@@ -163,7 +163,7 @@ def _render_scenario1_tab(obj_key: str):
     # Buy & Hold comparison
     st.markdown("")
     st.caption(
-        f"📊 Buy & Hold benchmark — IS: **{format_percentage(bh['in_sample']['total_return']*100)}** | "
+        f"📊 Buy & Hold benchmark: IS: **{format_percentage(bh['in_sample']['total_return']*100)}** | "
         f"OOS: **{format_percentage(bh['out_of_sample']['total_return']*100)}** | "
         f"Full: **{format_percentage(bh['full_dataset']['total_return']*100)}**"
     )
@@ -193,18 +193,18 @@ st.divider()
 # ══════════════════════════════════════════════════════════════════════════════
 # SCENARIO 2 — MAXIMUM EXPLORATION
 # ══════════════════════════════════════════════════════════════════════════════
-st.markdown("### Scenario 2 — Maximum Exploration Approach")
+st.markdown("### Scenario 2: Maximum Exploration Approach")
 
 # Mandatory disclosure — must appear before numbers
 st.markdown("""
 <div class="disclosure-box">
   ⚠️ <strong>IMPORTANT DISCLOSURE</strong><br><br>
   The following results were obtained by optimizing across the <strong>entire historical dataset (2012–2026)</strong>.
-  This process uses what is known as <em>lookahead bias</em> — the optimizer had access to data that would not have
+  This process uses what is known as <em>lookahead bias</em>: the optimizer had access to data that would not have
   been available at the time of trading.<br><br>
   These configurations <strong>cannot be used as predictive trading signals</strong>. The sole purpose of Scenario 2
-  is to map the <strong>absolute historical performance ceiling</strong> of the Trolololo indicator —
-  i.e., the best a strategy <em>could have done</em> with perfect hindsight. This serves as an academic reference point,
+  is to map the <strong>absolute historical performance ceiling</strong> of the Logarithmic Regression indicator,
+  representing the best a strategy <em>could have done</em> with perfect hindsight. This serves as an academic reference point,
   not a tradeable result.
 </div>
 """, unsafe_allow_html=True)

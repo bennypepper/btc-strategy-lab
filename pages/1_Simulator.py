@@ -68,7 +68,7 @@ DATA_MAX = df_full.index.max().to_pydatetime().date()
 st.markdown("## ⚡ Strategy Simulator")
 st.markdown(
     "<div style='opacity:0.5; font-size:0.88rem; margin-bottom:1.5rem;'>"
-    "Run live backtests with any custom parameters · Signal: <b>Trolololo</b> (Dynamic Channel Normalization) · "
+    "Run live backtests with any custom parameters · Signal: <b>Logarithmic Regression Index</b> · "
     "Execution: T+1 open price · Fee adjustable"
     "</div>",
     unsafe_allow_html=True,
@@ -143,7 +143,7 @@ with col_input:
     elif obj_key is not None and obj_key != "__live__":
         st.markdown(
             f"<div class='info-strip' style='margin:0.4rem 0 0.6rem; font-size:0.82rem; line-height:1.8;'>"
-            f"<b>📊 Optimal Grid Search Configuration — {scenario_name}</b><br>"
+            f"<b>📊 Optimal Grid Search Configuration: {scenario_name}</b><br>"
             f"Buy Threshold &nbsp;: <b>&le;&nbsp;{opt['threshold_buy']}%</b>"
             f"&nbsp;&nbsp;|&nbsp;&nbsp;"
             f"Sell Threshold : <b>&ge;&nbsp;{opt['threshold_sell']}%</b><br>"
@@ -167,13 +167,13 @@ with col_input:
         "📉 Buy Threshold",
         min_value=1, max_value=99,
         value=buy_default, step=1,
-        help="BUY signal fires when Trolololo is AT OR BELOW this value. Lower = more selective.",
+        help="BUY signal fires when Logarithmic Regression is AT OR BELOW this value. Lower = more selective.",
     )
     threshold_sell = st.slider(
         "📈 Sell Threshold",
         min_value=2, max_value=100,
         value=sell_default, step=1,
-        help="SELL signal fires when Trolololo is AT OR ABOVE this value. Higher = more selective.",
+        help="SELL signal fires when Logarithmic Regression is AT OR ABOVE this value. Higher = more selective.",
     )
 
     # Dynamic Rainbow Gradient Context
@@ -188,7 +188,10 @@ with col_input:
             <span style="color: #64748b; flex: 1; text-align: center;">Hold Zone ({hold_pct} pts)</span>
             <span style="color: #dc2626; flex: 1; display: flex; justify-content: flex-end; align-items: center; gap: 6px;">
                 Sell Zone (&ge;{threshold_sell})
-                <div title="Visual representation of the Buy, Hold, and Sell zones based on your selected thresholds." style="width: 16px; height: 16px; border-radius: 50%; border: 1px solid #94a3b8; color: #64748b; font-size: 11px; display: flex; align-items: center; justify-content: center; font-weight: 700; cursor: help;">?</div>
+                <div class="custom-tooltip">
+                    <div style="width: 16px; height: 16px; border-radius: 50%; border: 1px solid #c9c2b8; color: #547792; font-size: 11px; display: flex; align-items: center; justify-content: center; font-weight: 700; margin-left: 2px;">?</div>
+                    <span class="custom-tooltiptext">Visual representation of the Buy, Hold, and Sell zones based on your selected thresholds.</span>
+                </div>
             </span>
         </div>
         <div style="display: flex; height: 16px; width: 100%; border-radius: 8px; overflow: hidden; border: 1px solid rgba(0,0,0,0.1);">
