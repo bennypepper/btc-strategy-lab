@@ -33,7 +33,7 @@ SCENARIO_1_LOG = TRIAL_LOG_DIR / "scenario_1_grid_search_in_sample.parquet"
 SCENARIO_2_LOG = TRIAL_LOG_DIR / "scenario_2_grid_search_full.parquet"
 
 
-@st.cache_data(ttl=43200, show_spinner=False)  # Cache for 12 hours
+@st.cache_data(ttl=300, show_spinner=False)  # Cache for 5 minutes (for real-time updates)
 def load_smart_dataset() -> pd.DataFrame:
     """
     Hybrid Data Pipeline (Smart Appending):
@@ -41,7 +41,7 @@ def load_smart_dataset() -> pd.DataFrame:
     2. Checks the last date in the static dataset.
     3. Fetches ONLY the missing daily BTC-USD prices from Yahoo Finance up to today.
     4. Computes Trolololo for the entire combined price history instantly.
-    5. Caches the result so it's lightning fast for 12 hours.
+    5. Caches the result for 5 minutes.
 
     This removes the need for users to choose between "Historical" and "Live" modes,
     providing a seamless, always-up-to-date experience.

@@ -15,7 +15,7 @@ import streamlit as st
 from core.data_loader import load_smart_dataset, load_research_results
 from core.engine import warmup_numba
 from core.styles import inject_css, ICON_ZAP, ICON_CHART_BARS, ICON_BOOK
-from core.utils import format_percentage, format_currency
+from core.utils import format_currency
 
 # ── Page configuration ────────────────────────────────────────────────────────
 st.set_page_config(
@@ -84,7 +84,7 @@ latest_row = df_live.loc[latest_date]
 is_live = True
 
 latest_cbbi = float(latest_row['trolololo'])
-latest_price = float(latest_row.get('btc_open', latest_row.get('btc_close', 0.0)))
+latest_price = float(latest_row['btc_close'])
 total_days = len(df_live)
 min_date = str(df_live.index.min().date())
 
@@ -106,7 +106,7 @@ st.markdown(
       <!-- Card 1: Trolololo Index -->
       <div style="flex:1; min-width:250px; background:#ffffff; border-radius:0; padding:1.5rem; border:2px solid #c9c2b8; box-shadow:5px 5px 0px 0px rgba(33,52,72,0.15);">
         <div style="font-family:'Inter', sans-serif; font-size:0.75rem; font-weight:700; color:#547792; letter-spacing:0.08em; margin-bottom:0.5rem; text-transform:uppercase;">Trolololo Index</div>
-        <div style="font-family:'Space Grotesk', sans-serif; font-size:2.8rem; font-weight:800; color:#213448; line-height:1; margin-bottom:0.75rem; letter-spacing:-0.03em;">{format_percentage(latest_cbbi)}</div>
+        <div style="font-family:'Space Grotesk', sans-serif; font-size:2.8rem; font-weight:800; color:#213448; line-height:1; margin-bottom:0.75rem; letter-spacing:-0.03em;">{latest_cbbi:.1f}%</div>
         <div style="display:inline-block; font-family:'Inter', sans-serif; background:{zone_color}12; color:{zone_color}; padding:0.25rem 0.75rem; font-size:0.75rem; font-weight:700; margin-bottom:1.5rem; text-transform:uppercase; border:2px solid {zone_color}; box-shadow:2px 2px 0px 0px {zone_color}40;">
           {zone_label}
         </div>
