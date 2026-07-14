@@ -1,41 +1,41 @@
 {
-  "generated_at": "2026-07-14 21:04:36",
+  "generated_at": "2026-07-15 00:41:50",
   "status": "success",
   "total_combinations": 1293750,
-  "elapsed_seconds": 5.54,
+  "elapsed_seconds": 5.68,
   "data_source": "live_yfinance_independent",
   "data_date_range": "2012-01-02 \u2192 2020-12-31",
   "max_return": {
-    "threshold_buy": 34,
-    "threshold_sell": 79,
+    "threshold_buy": 11,
+    "threshold_sell": 99,
     "allocation_buy_pct": 0.25,
-    "allocation_sell_pct": 0.25,
-    "total_return": 15682889448585.11,
-    "sharpe_ratio": 2.438301,
-    "max_drawdown": 0.918309,
-    "trade_count": 803
+    "allocation_sell_pct": 0.17,
+    "total_return": 125698.283021,
+    "sharpe_ratio": 2.095783,
+    "max_drawdown": 0.709956,
+    "trade_count": 215
   },
   "max_sharpe": {
-    "threshold_buy": 45,
-    "threshold_sell": 100,
-    "allocation_buy_pct": 0.25,
-    "allocation_sell_pct": 0.01,
-    "total_return": 19767.269229,
-    "sharpe_ratio": 2.628988,
-    "max_drawdown": 0.987099,
-    "trade_count": 608
+    "threshold_buy": 1,
+    "threshold_sell": 75,
+    "allocation_buy_pct": 0.22,
+    "allocation_sell_pct": 0.14,
+    "total_return": 21749.196767,
+    "sharpe_ratio": 2.197343,
+    "max_drawdown": 0.56121,
+    "trade_count": 346
   },
   "min_drawdown": {
     "threshold_buy": 1,
-    "threshold_sell": 73,
+    "threshold_sell": 68,
     "allocation_buy_pct": 0.01,
     "allocation_sell_pct": 0.25,
-    "total_return": 6444.404623,
-    "sharpe_ratio": 1.315425,
-    "max_drawdown": 0.831627,
-    "trade_count": 878
+    "total_return": 841.454059,
+    "sharpe_ratio": 1.955726,
+    "max_drawdown": 0.357241,
+    "trade_count": 742
   },
   "buy_and_hold": {
-    "total_return": 4145.142857
+    "total_return": 4836.166667
   }
 }
