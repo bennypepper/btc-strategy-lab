@@ -60,7 +60,8 @@ def _fmt_pct(v: float) -> str:
     return f"{sign}{v*100:.1f}%"
 
 def _fmt_dd(v: float) -> str:
-    return f"{v*100:.1f}%"
+    # Always display drawdown as negative for visual consistency
+    return f"-{abs(v)*100:.1f}%"
 
 def _fmt_num(v) -> str:
     return f"{v:,}"

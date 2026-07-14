@@ -1,41 +1,41 @@
 {
-  "generated_at": "2026-04-24 16:34:58",
+  "generated_at": "2026-07-14 21:04:36",
   "status": "success",
-  "total_combinations": 31850,
-  "elapsed_seconds": 0.24,
-  "data_source": "live_cbbi_api",
-  "data_date_range": "2011-06-27 \u2192 2020-12-31",
+  "total_combinations": 1293750,
+  "elapsed_seconds": 5.54,
+  "data_source": "live_yfinance_independent",
+  "data_date_range": "2012-01-02 \u2192 2020-12-31",
   "max_return": {
-    "threshold_buy": 9,
-    "threshold_sell": 96,
-    "allocation_buy_pct": 0.3,
-    "allocation_sell_pct": 0.3,
-    "total_return": 259110.768703,
-    "sharpe_ratio": 1.802437,
-    "max_drawdown": -0.71241,
-    "trade_count": 164
+    "threshold_buy": 34,
+    "threshold_sell": 79,
+    "allocation_buy_pct": 0.25,
+    "allocation_sell_pct": 0.25,
+    "total_return": 15682889448585.11,
+    "sharpe_ratio": 2.438301,
+    "max_drawdown": 0.918309,
+    "trade_count": 803
   },
   "max_sharpe": {
-    "threshold_buy": 9,
-    "threshold_sell": 96,
-    "allocation_buy_pct": 0.1,
-    "allocation_sell_pct": 0.3,
-    "total_return": 230652.008651,
-    "sharpe_ratio": 1.819476,
-    "max_drawdown": -0.711664,
-    "trade_count": 279
+    "threshold_buy": 45,
+    "threshold_sell": 100,
+    "allocation_buy_pct": 0.25,
+    "allocation_sell_pct": 0.01,
+    "total_return": 19767.269229,
+    "sharpe_ratio": 2.628988,
+    "max_drawdown": 0.987099,
+    "trade_count": 608
   },
   "min_drawdown": {
     "threshold_buy": 1,
-    "threshold_sell": 50,
+    "threshold_sell": 73,
     "allocation_buy_pct": 0.01,
-    "allocation_sell_pct": 0.05,
-    "total_return": 0.060033,
-    "sharpe_ratio": 0.712572,
-    "max_drawdown": -0.01561,
-    "trade_count": 543
+    "allocation_sell_pct": 0.25,
+    "total_return": 6444.404623,
+    "sharpe_ratio": 1.315425,
+    "max_drawdown": 0.831627,
+    "trade_count": 878
   },
   "buy_and_hold": {
-    "total_return": 1731.45891
+    "total_return": 4145.142857
   }
 }

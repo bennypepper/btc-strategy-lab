@@ -84,64 +84,66 @@ def _full_backtest_kernel(
     cash = initial_cash
     btc = 0.0
     trade_count = 0
-    peak = initial_cash
+    avg_entry_price = 0.0
 
-    daily_returns = np.empty(n - 1)
-
-    prev_val = initial_cash
+    portfolio_value = np.zeros(n, dtype=np.float64)
+    daily_returns = np.zeros(n, dtype=np.float64)
+    portfolio_value[0] = initial_cash
 
     for i in range(n - 1):
         sig = signal[i]
-        exec_price = open_prices[i + 1]   # T+1 open execution
+        p_exec = open_prices[i + 1]
+        p_close = close_prices[i]
 
-        if sig <= threshold_buy and exec_price > 0 and cash > 1.0:
-            spend = cash * alloc_buy
-            btc_bought = spend * (1.0 - fee_rate) / exec_price
-            btc  += btc_bought
-            cash -= spend
-            trade_count += 1
+        curr_val = cash + (btc * p_close)
+        portfolio_value[i] = curr_val
+        if i > 0:
+            prev = portfolio_value[i - 1]
+            daily_returns[i] = (curr_val - prev) / prev if prev > 0 else 0.0
 
-        elif sig >= threshold_sell and exec_price > 0 and btc > 0.0:
-            sell_btc = btc * alloc_sell
-            proceeds = sell_btc * exec_price * (1.0 - fee_rate)
-            cash += proceeds
-            btc  -= sell_btc
-            trade_count += 1
+        if sig <= threshold_buy:
+            trade_amount = cash * alloc_buy
+            if trade_amount > 1.0:
+                fee = trade_amount * fee_rate
+                net_usd = trade_amount - fee
+                btc_bought = net_usd / p_exec
+                total_cost = (btc * avg_entry_price) + trade_amount
+                btc += btc_bought
+                if btc > 0:
+                    avg_entry_price = total_cost / btc
+                cash -= trade_amount
+                trade_count += 1
+        elif sig >= threshold_sell:
+            btc_sold = btc * alloc_sell
+            if btc_sold > 0.000001:
+                gross_usd = btc_sold * p_exec
+                fee = gross_usd * fee_rate
+                net_usd = gross_usd - fee
+                cash += net_usd
+                btc -= btc_sold
+                trade_count += 1
 
-        port_val = cash + btc * close_prices[i + 1]
-        if port_val > peak:
-            peak = port_val
+    portfolio_value[n - 1] = cash + (btc * close_prices[n - 1])
+    prev = portfolio_value[n - 2]
+    daily_returns[n - 1] = (portfolio_value[n - 1] - prev) / prev if prev > 0 else 0.0
 
-        dr = (port_val - prev_val) / prev_val if prev_val > 0 else 0.0
-        daily_returns[i] = dr
-        prev_val = port_val
+    total_return = (portfolio_value[-1] - initial_cash) / initial_cash
 
-    final_val = cash + btc * close_prices[-1]
-    total_return = (final_val - initial_cash) / initial_cash
+    max_dd = 0.0
+    peak = portfolio_value[0]
+    for i in range(n):
+        if portfolio_value[i] > peak:
+            peak = portfolio_value[i]
+        dd = (peak - portfolio_value[i]) / peak if peak > 0 else 0.0
+        if dd > max_dd:
+            max_dd = dd
 
-    # Sharpe (annualised, 252 trading days)
     mean_r = np.mean(daily_returns)
     std_r  = np.std(daily_returns)
-    sharpe = (mean_r / std_r * np.sqrt(252)) if std_r > 1e-10 else 0.0
-
-    # Max drawdown (running peak)
-    running_peak = initial_cash
-    max_dd = 0.0
-    port_val = initial_cash
-    for i in range(n):
-        port_val = initial_cash + daily_returns[i - 1] * port_val if i > 0 else initial_cash
-        # Simpler: recompute from daily_returns
-    # Fast drawdown from daily_returns array
-    cum = np.empty(n)
-    cum[0] = initial_cash
-    for i in range(1, n):
-        cum[i] = cum[i - 1] * (1.0 + daily_returns[i - 1])
-    for i in range(1, n):
-        if cum[i - 1] > running_peak:
-            running_peak = cum[i - 1]
-        dd = (cum[i] - running_peak) / running_peak
-        if dd < max_dd:
-            max_dd = dd
+    rf_daily = 0.04 / 365.0
+    sharpe = 0.0
+    if std_r > 1e-10:
+        sharpe = ((mean_r - rf_daily) / std_r) * np.sqrt(365.0)
 
     return total_return, sharpe, max_dd, trade_count
 
@@ -303,7 +305,7 @@ def run_live_optimization(
 
     best_return   = _best_row(valid, 4, True)
     best_sharpe   = _best_row(valid, 5, True)
-    best_drawdown = _best_row(valid, 6, True)   # maximize → least negative (closest to 0) = smallest drawdown
+    best_drawdown = _best_row(valid, 6, False)  # minimize positive drawdown (maximize=False)
 
     # Buy & Hold benchmark on IS period
     bh_start = float(open_prices[0])
