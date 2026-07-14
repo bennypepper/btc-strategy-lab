@@ -12,15 +12,15 @@ Built as the public deliverable of the research project:
 ## Features
 
 - **Strategy Simulator:** Run backtests with custom parameters on 14 years of Bitcoin data. Uses a Numba JIT-compiled backtest engine.
-- **Live API Integration:** Switch between the static historical dataset and the Live CBBI API from Colintalkscrypto.
-- **Dynamic Parameter Optimizer:** Recalculate optimal parameters against the current live CBBI formula to address Index Revision Bias caused by retroactive formula updates.
+- **Live Data Integration:** Switch between the static historical dataset and live data fetched from Yahoo Finance.
+- **Dynamic Parameter Optimizer:** Recalculate optimal parameters against live price data to address Index Revision Bias caused by retroactive index revisions.
 - **Historical Research Results:** View Phase 3 optimization outcomes from 1.29 million parameter combinations across multiple scenarios.
 - **Interactive Charts:** Plotly integration for viewing equity curves, signal overlays, and sensitivity heatmaps.
 - **User Interface:** Responsive interface with consistent styling and interactive tooltips.
 
 ## Signal Indicator
 
-This application uses **Logarithmic Regression** (also known as Trolololo / Bitcoin Rainbow Chart) as the primary trading signal. This indicator was identified as the most statistically significant among 10 on-chain indicators analyzed, based on Spearman correlation analysis (composite score 0.6557, ρ = −0.4261 at 90-day lag). It is computed independently from BTC price data via Dynamic Channel Normalization, with no dependency on third-party APIs.
+This application uses **Logarithmic Regression** (also known as Bitcoin Rainbow Chart) as the primary trading signal. This indicator was identified as the most statistically significant among 10 on-chain indicators analyzed, based on Spearman correlation analysis (composite score 0.6557, ρ = −0.4261 at 90-day lag). It is computed independently from BTC price data via Dynamic Channel Normalization, with no dependency on third-party APIs.
 
 ## Running Locally
 
@@ -47,8 +47,8 @@ btc-strategy-lab/
 │   └── utils.py            # Formatting helpers
 ├── pages/                  # Streamlit application pages
 │   ├── 1_Simulator.py      # Interactive simulator
-│   ├── 2_Historical.py     # Static Phase 3 research results
-│   ├── 3_Methodology.py    # Architectural and mathematical documentation
+│   ├── 2_Research_Results.py # Static Phase 3 research results
+│   ├── 3_Documentation.py  # Architectural and mathematical documentation
 │   └── 4_Optimizer.py      # Parameter re-optimization for live deployment
 └── data/                   # Datasets and state tracking
     ├── master_dataset.parquet      # Frozen snapshot data
@@ -64,7 +64,7 @@ This application is for educational and academic purposes only. All results are 
 
 - **Phase 1-3 repository:** Public research repo (https://github.com/bennypepper/btc-trading-optimization)
 - **Research title:** Optimalisasi Parameter Trading Bitcoin Menggunakan Grid Search pada Tiga Metrik Evaluasi Berbasis Indikator Logarithmic Regression
-- **Data sources:** CBBI dataset (10 on-chain indicators) + Yahoo Finance BTC-USD. Logarithmic Regression computed independently.
+- **Data sources:** CBBI dataset (10 on-chain indicators) + Yahoo Finance BTC-USD. Logarithmic Regression is computed independently.
 - **Optimization:** Grid Search across 1,293,750 parameter combinations × 3 evaluation metrics
 - **Framework:** Undergraduate Research (PKL), 2026
 
