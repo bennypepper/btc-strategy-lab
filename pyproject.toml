@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "cbbi-strategy-lab"
+name = "btc-strategy-lab"
 version = "1.0.0"
 description = "Interactive Bitcoin backtesting simulator and research visualization laboratory"
 readme = "README.md"

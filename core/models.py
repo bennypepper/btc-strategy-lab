@@ -1,7 +1,7 @@
 """
 core/models.py
 ==============
-Domain models and schema contracts for the CBBI Strategy Lab.
+Domain models and schema contracts for the BTC Strategy Lab.
 Adheres to The Pragmatic Systems Handbook (Sections 1.2, 2.5).
 """
 
