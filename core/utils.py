@@ -14,19 +14,21 @@ def format_percentage(value: float, decimal_places: int = 1) -> str:
     - 1K to 1M: +1,500% (comma separated, no decimals)
     - Over 1M:  +1.50M% (M, B, T abbreviations)
     """
-    sign = "+" if value > 0 else ""
+    if value == 0.0:
+        return f"0.{'0' * decimal_places}%" if decimal_places > 0 else "0%"
+    sign = "+" if value > 0 else "-"
     abs_v = abs(value)
     
     if abs_v >= 1e12:
-        return f"{sign}{value/1e12:.2f}T%"
+        return f"{sign}{abs_v/1e12:.2f}T%"
     elif abs_v >= 1e9:
-        return f"{sign}{value/1e9:.2f}B%"
+        return f"{sign}{abs_v/1e9:.2f}B%"
     elif abs_v >= 1e6:
-        return f"{sign}{value/1e6:.2f}M%"
+        return f"{sign}{abs_v/1e6:.2f}M%"
     elif abs_v >= 1e3:
-        return f"{sign}{value:,.0f}%"
+        return f"{sign}{abs_v:,.0f}%"
     else:
-        return f"{sign}{value:,.{decimal_places}f}%"
+        return f"{sign}{abs_v:,.{decimal_places}f}%"
 
 
 def format_currency(value: float) -> str:
@@ -68,7 +70,7 @@ def format_number(value: float, decimal_places: int = 6) -> str:
     elif abs_v >= 1e6:
         return f"{sign}{abs_v/1e6:.2f}M"
     elif abs_v >= 1e3:
-        return f"{sign}{abs_v:,.2f}K"
+        return f"{sign}{abs_v/1e3:.2f}K"
     else:
         # Avoid trailing zeros if it's an exact integer, otherwise show up to `decimal_places`
         if abs_v.is_integer():
