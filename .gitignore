@@ -12,6 +12,9 @@ venv/
 env/
 .env
 
+# Testing
+.pytest_cache/
+
 # Streamlit
 .streamlit/secrets.toml
 

@@ -3,24 +3,28 @@ core/engine.py
 ==============
 Backtest engine adapted from the core research repository/src/optimization/engine.py.
 
-Two functions:
-  - run_backtest_numba()  : JIT-compiled, returns scalars only. Used for fast
-                            repeated evaluation (e.g., heatmap lookups if needed).
-  - run_backtest_full()   : Pure Python. Same logic but additionally returns
-                            per-day portfolio history and trade log. Used by the
-                            simulator page to render charts.
+Two primary interfaces:
+  - run_backtest_numba() : JIT-compiled, returns scalar performance metrics.
+  - run_backtest_full()  : High-trace simulation returning SimulationResult with
+                           portfolio history, trade log, and structured metrics.
 
-Anti-Lookahead Bias Rule (enforced in both functions):
-  - Signal ← trolololo[T]  (close of day T)
-  - Execution ← btc_open[T+1]  (open of day T+1)
+Anti-Lookahead Bias Rule (strictly enforced):
+  - Signal    <- trolololo[T]     (close of day T)
+  - Execution <- btc_open[T+1]    (open of day T+1)
 """
 
 from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-from dataclasses import dataclass, field
 from numba import njit
+
+from core.models import (
+    BacktestParameters,
+    StrategyMetrics,
+    BenchmarkMetrics,
+    SimulationResult,
+)
 
 
 # ── Numba JIT engine ─────────────────────────────────────────────────────────
@@ -42,13 +46,13 @@ def run_backtest_numba(
 
     Parameters
     ----------
-    signals       : daily Trolololo values [0–100]
+    signals       : daily Trolololo values [0-100]
     prices_open   : daily BTC open prices (execution T+1)
     prices_close  : daily BTC close prices (signal evaluation)
-    threshold_buy : signal < threshold_buy  → BUY
-    threshold_sell: signal > threshold_sell → SELL
-    alloc_buy_pct : fraction of cash to deploy per BUY (0.01–0.25)
-    alloc_sell_pct: fraction of BTC to sell per SELL (0.01–0.25)
+    threshold_buy : signal <= threshold_buy  -> BUY
+    threshold_sell: signal >= threshold_sell -> SELL
+    alloc_buy_pct : fraction of cash to deploy per BUY (0.01-1.0)
+    alloc_sell_pct: fraction of BTC to sell per SELL (0.01-1.0)
     initial_cash  : starting USD balance
     fee_rate      : trading fee per transaction (0.001 = 0.1%)
 
@@ -65,15 +69,15 @@ def run_backtest_numba(
     sell_count = 0
 
     portfolio_value = np.zeros(n_days, dtype=np.float64)
-    daily_returns   = np.zeros(n_days, dtype=np.float64)
+    daily_returns = np.zeros(n_days, dtype=np.float64)
 
     avg_entry_price = 0.0
     portfolio_value[0] = initial_cash
 
     for i in range(n_days - 1):
-        sig      = signals[i]
-        p_exec   = prices_open[i + 1]   # T+1 open — execution price
-        p_close  = prices_close[i]      # T close — valuation
+        sig = signals[i]
+        p_exec = prices_open[i + 1]   # T+1 open - execution price
+        p_close = prices_close[i]     # T close - valuation
 
         curr_val = cash + (btc * p_close)
         portfolio_value[i] = curr_val
@@ -83,12 +87,12 @@ def run_backtest_numba(
 
         if sig <= threshold_buy:
             trade_amount = cash * alloc_buy_pct
-            if trade_amount > 1.0:  # Minimum $1 guard — prevents dust buys (matches CLI)
-                fee        = trade_amount * fee_rate
-                net_usd    = trade_amount - fee
+            if trade_amount > 1.0:  # Minimum $1 guard - prevents dust buys
+                fee = trade_amount * fee_rate
+                net_usd = trade_amount - fee
                 btc_bought = net_usd / p_exec
                 total_cost = (btc * avg_entry_price) + trade_amount
-                btc       += btc_bought
+                btc += btc_bought
                 if btc > 0:
                     avg_entry_price = total_cost / btc
                 cash -= trade_amount
@@ -96,13 +100,13 @@ def run_backtest_numba(
 
         elif sig >= threshold_sell:
             btc_sold = btc * alloc_sell_pct
-            if btc_sold > 0.000001:  # Minimum BTC dust guard (matches CLI)
+            if btc_sold > 0.000001:  # Minimum BTC dust guard
                 gross_usd = btc_sold * p_exec
-                fee       = gross_usd * fee_rate
-                net_usd   = gross_usd - fee
+                fee = gross_usd * fee_rate
+                net_usd = gross_usd - fee
                 cost_sold = btc_sold * avg_entry_price
-                cash     += net_usd
-                btc      -= btc_sold
+                cash += net_usd
+                btc -= btc_sold
                 trade_count += 1
                 if net_usd > cost_sold:
                     wins += 1
@@ -110,7 +114,7 @@ def run_backtest_numba(
 
     # Final day valuation
     portfolio_value[n_days - 1] = cash + (btc * prices_close[n_days - 1])
-    prev = portfolio_value[n_days - 2]
+    prev = portfolio_value[n_days - 2] if n_days >= 2 else initial_cash
     daily_returns[n_days - 1] = (
         (portfolio_value[n_days - 1] - prev) / prev if prev > 0 else 0.0
     )
@@ -127,8 +131,10 @@ def run_backtest_numba(
         if dd > max_drawdown:
             max_drawdown = dd
 
-    mean_ret = np.mean(daily_returns)
-    std_ret  = np.std(daily_returns)
+    # Evaluate returns across actual inter-day steps (exclude day 0 uncomputed slot)
+    returns_slice = daily_returns[1:] if n_days > 1 else daily_returns
+    mean_ret = np.mean(returns_slice)
+    std_ret = np.std(returns_slice)
     rf_daily = 0.04 / 365.0
     sharpe_ratio = 0.0
     if std_ret > 0:
@@ -139,15 +145,94 @@ def run_backtest_numba(
 
 # ── Full trace engine (Python-level) ─────────────────────────────────────────
 
-@dataclass
-class SimulationResult:
-    """Full output of a simulator run."""
-    portfolio_history: pd.DataFrame   # columns: date, portfolio_value, cash, btc_held
-    trade_log: pd.DataFrame           # columns: date, action, signal_value, exec_price, amount_usd, portfolio_value_after
-    metrics: dict                     # total_return, max_drawdown, sharpe_ratio, win_rate, trade_count
-    benchmark_metrics: dict           # buy_and_hold: total_return, max_drawdown, sharpe_ratio
-    low_sample_warning: bool
-    params: dict                      # echo of input params
+def _compute_strategy_metrics(
+    pv: np.ndarray,
+    dr: np.ndarray,
+    dates: pd.DatetimeIndex,
+    initial_cash: float,
+    trade_count: int,
+    sell_count: int,
+    wins: int,
+    cash_final: float,
+    btc_final: float,
+) -> StrategyMetrics:
+    """Pure helper function to compute metrics for active strategy."""
+    total_return = (pv[-1] - initial_cash) / initial_cash
+
+    max_drawdown = 0.0
+    max_drawdown_idx = 0
+    peak = pv[0]
+    for i in range(len(pv)):
+        if pv[i] > peak:
+            peak = pv[i]
+        dd = (peak - pv[i]) / peak if peak > 0 else 0.0
+        if dd > max_drawdown:
+            max_drawdown = dd
+            max_drawdown_idx = i
+
+    max_drawdown_date = str(dates[max_drawdown_idx].date()) if len(dates) > max_drawdown_idx else ""
+    buy_count = trade_count - sell_count
+
+    # Inter-day returns excluding day 0
+    returns_slice = dr[1:] if len(dr) > 1 else dr
+    mean_ret = float(np.mean(returns_slice))
+    std_ret = float(np.std(returns_slice))
+    rf_daily = 0.04 / 365.0
+    sharpe_ratio = 0.0
+    if std_ret > 0:
+        sharpe_ratio = ((mean_ret - rf_daily) / std_ret) * np.sqrt(365.0)
+
+    win_rate = float(wins) / sell_count if sell_count > 0 else 0.0
+
+    return StrategyMetrics(
+        total_return=float(total_return),
+        max_drawdown=float(max_drawdown),
+        max_drawdown_date=max_drawdown_date,
+        sharpe_ratio=float(sharpe_ratio),
+        win_rate=float(win_rate),
+        trade_count=int(trade_count),
+        buy_count=int(buy_count),
+        sell_count=int(sell_count),
+        final_cash=float(cash_final),
+        final_btc=float(btc_final),
+        final_portfolio_value=float(pv[-1]),
+    )
+
+
+def _compute_benchmark_metrics(
+    prices_open: np.ndarray,
+    prices_close: np.ndarray,
+    initial_cash: float,
+    fee_rate: float,
+) -> tuple[np.ndarray, BenchmarkMetrics]:
+    """Pure helper function to compute Buy & Hold benchmark history and metrics."""
+    bh_btc = (initial_cash * (1.0 - fee_rate)) / prices_open[0]
+    bh_values = bh_btc * prices_close
+    bh_return = (bh_values[-1] - initial_cash) / initial_cash
+
+    bh_daily_ret = np.diff(prices_close) / prices_close[:-1]
+
+    bh_mdd = 0.0
+    bh_peak = prices_close[0]
+    for p in prices_close:
+        if p > bh_peak:
+            bh_peak = p
+        bh_dd = (bh_peak - p) / bh_peak if bh_peak > 0 else 0.0
+        if bh_dd > bh_mdd:
+            bh_mdd = bh_dd
+
+    bh_mean = float(np.mean(bh_daily_ret))
+    bh_std = float(np.std(bh_daily_ret))
+    rf_daily = 0.04 / 365.0
+    bh_sharpe = ((bh_mean - rf_daily) / bh_std * np.sqrt(365.0)) if bh_std > 0 else 0.0
+
+    metrics = BenchmarkMetrics(
+        total_return=float(bh_return),
+        max_drawdown=float(bh_mdd),
+        sharpe_ratio=float(bh_sharpe),
+        final_value=float(bh_values[-1]),
+    )
+    return bh_values, metrics
 
 
 def run_backtest_full(
@@ -161,60 +246,56 @@ def run_backtest_full(
     signal_column: str = "trolololo",
 ) -> SimulationResult:
     """
-    Full-trace backtest — same logic as Numba engine but also tracks
-    per-day portfolio state and individual trade log.
-
-    Parameters
-    ----------
-    df            : master_dataset slice (DatetimeIndex, must contain signal_column,
-                    btc_open, btc_close)
-    threshold_buy : signal < threshold_buy  → BUY
-    threshold_sell: signal > threshold_sell → SELL
-    alloc_buy_pct : 0.01–0.25 (fraction of cash per BUY)
-    alloc_sell_pct: 0.01–0.25 (fraction of BTC per SELL)
-    initial_cash  : starting USD balance
-    fee_rate      : per-trade fee (0.001 = 0.1%)
-    signal_column : default 'trolololo'
-
-    Returns
-    -------
-    SimulationResult
+    Full-trace backtest simulation tracking per-day portfolio state and trade logs.
+    Adheres strictly to the Single Level of Abstraction Principle (SLAP).
     """
-    df = df.dropna(subset=[signal_column, "btc_open", "btc_close"]).copy()
-    n = len(df)
+    params = BacktestParameters(
+        threshold_buy=int(threshold_buy),
+        threshold_sell=int(threshold_sell),
+        alloc_buy_pct=float(alloc_buy_pct),
+        alloc_sell_pct=float(alloc_sell_pct),
+        initial_cash=float(initial_cash),
+        fee_rate=float(fee_rate),
+        signal_column=signal_column,
+    )
 
-    signals      = df[signal_column].values.astype(np.float64)
-    prices_open  = df["btc_open"].values.astype(np.float64)
-    prices_close = df["btc_close"].values.astype(np.float64)
-    dates        = df.index
+    clean_df = df.dropna(subset=[params.signal_column, "btc_open", "btc_close"]).copy()
+    n = len(clean_df)
+    if n < 2:
+        raise ValueError("Insufficient data points for backtesting (need at least 2).")
 
-    cash            = initial_cash
-    btc             = 0.0
+    signals = clean_df[params.signal_column].values.astype(np.float64)
+    prices_open = clean_df["btc_open"].values.astype(np.float64)
+    prices_close = clean_df["btc_close"].values.astype(np.float64)
+    dates = clean_df.index
+
+    cash = params.initial_cash
+    btc = 0.0
     avg_entry_price = 0.0
-    trade_count     = 0
-    wins            = 0
-    sell_count      = 0
+    trade_count = 0
+    wins = 0
+    sell_count = 0
 
-    pv   = np.zeros(n, dtype=np.float64)
+    pv = np.zeros(n, dtype=np.float64)
     cash_arr = np.zeros(n, dtype=np.float64)
-    btc_arr  = np.zeros(n, dtype=np.float64)
-    dr   = np.zeros(n, dtype=np.float64)
+    btc_arr = np.zeros(n, dtype=np.float64)
+    dr = np.zeros(n, dtype=np.float64)
 
-    trade_rows: list = []
+    trade_rows: list[dict] = []
 
-    pv[0]       = initial_cash
-    cash_arr[0] = initial_cash
-    btc_arr[0]  = 0.0
+    pv[0] = params.initial_cash
+    cash_arr[0] = params.initial_cash
+    btc_arr[0] = 0.0
 
     for i in range(n - 1):
-        sig    = signals[i]
+        sig = signals[i]
         p_exec = prices_open[i + 1]   # T+1 open
-        p_val  = prices_close[i]      # T close for valuation
+        p_val = prices_close[i]       # T close for valuation
 
-        curr_val    = cash + (btc * p_val)
-        pv[i]       = curr_val
+        curr_val = cash + (btc * p_val)
+        pv[i] = curr_val
         cash_arr[i] = cash
-        btc_arr[i]  = btc
+        btc_arr[i] = btc
 
         if i > 0:
             prev = pv[i - 1]
@@ -222,28 +303,28 @@ def run_backtest_full(
 
         action = None
 
-        if sig <= threshold_buy:
-            trade_amount = cash * alloc_buy_pct
-            if trade_amount > 1.0:  # Minimum $1 guard — prevents dust buys (matches CLI)
-                fee        = trade_amount * fee_rate
-                net_usd    = trade_amount - fee
+        if sig <= params.threshold_buy:
+            trade_amount = cash * params.alloc_buy_pct
+            if trade_amount > 1.0:  # Minimum $1 dust guard
+                fee = trade_amount * params.fee_rate
+                net_usd = trade_amount - fee
                 btc_bought = net_usd / p_exec
                 total_cost = (btc * avg_entry_price) + trade_amount
-                btc       += btc_bought
+                btc += btc_bought
                 avg_entry_price = total_cost / btc if btc > 0 else 0.0
                 cash -= trade_amount
                 trade_count += 1
                 action = ("BUY", trade_amount, btc_bought)
 
-        elif sig >= threshold_sell:
-            btc_sold = btc * alloc_sell_pct
-            if btc_sold > 0.000001:  # Minimum BTC dust guard (matches CLI)
+        elif sig >= params.threshold_sell:
+            btc_sold = btc * params.alloc_sell_pct
+            if btc_sold > 0.000001:  # Minimum BTC dust guard
                 gross_usd = btc_sold * p_exec
-                fee       = gross_usd * fee_rate
-                net_usd   = gross_usd - fee
+                fee = gross_usd * params.fee_rate
+                net_usd = gross_usd - fee
                 cost_sold = btc_sold * avg_entry_price
-                cash     += net_usd
-                btc      -= btc_sold
+                cash += net_usd
+                btc -= btc_sold
                 trade_count += 1
                 if net_usd > cost_sold:
                     wins += 1
@@ -254,83 +335,55 @@ def run_backtest_full(
             exec_date = dates[i + 1] if i + 1 < n else dates[i]
             equity_after = cash + btc * p_exec
             trade_rows.append({
-                "Date":           exec_date,
-                "Action":         action[0],
-                "BTC Price":      round(p_exec, 2),
-                "Amount (USD)":   round(action[1], 2),
-                "BTC Amount":     round(action[2], 6),   # exact BTC qty bought/sold
-                "Signal Index":     round(sig, 1),
-                "Cash After":     round(cash, 2),
+                "Date": exec_date,
+                "Action": action[0],
+                "BTC Price": round(p_exec, 2),
+                "Amount (USD)": round(action[1], 2),
+                "BTC Amount": round(action[2], 6),
+                "Signal Index": round(sig, 1),
+                "Cash After": round(cash, 2),
                 "BTC Held After": round(btc, 6),
-                "Equity After":   round(equity_after, 2),
+                "Equity After": round(equity_after, 2),
             })
 
-    # Final day
-    pv[n - 1]       = cash + (btc * prices_close[n - 1])
+    # Final day valuation
+    pv[n - 1] = cash + (btc * prices_close[n - 1])
     cash_arr[n - 1] = cash
-    btc_arr[n - 1]  = btc
-    prev = pv[n - 2] if n >= 2 else initial_cash
+    btc_arr[n - 1] = btc
+    prev = pv[n - 2] if n >= 2 else params.initial_cash
     dr[n - 1] = (pv[n - 1] - prev) / prev if prev > 0 else 0.0
 
-    # ── Metrics ──────────────────────────────────────────────────────────────
-    total_return = (pv[-1] - initial_cash) / initial_cash
+    # ── Performance Metrics ──────────────────────────────────────────────────
+    strategy_metrics = _compute_strategy_metrics(
+        pv=pv,
+        dr=dr,
+        dates=dates,
+        initial_cash=params.initial_cash,
+        trade_count=trade_count,
+        sell_count=sell_count,
+        wins=wins,
+        cash_final=cash_arr[-1],
+        btc_final=btc_arr[-1],
+    )
 
-    max_drawdown = 0.0
-    max_drawdown_idx = 0
-    peak = pv[0]
-    for i in range(n):
-        if pv[i] > peak:
-            peak = pv[i]
-        dd = (peak - pv[i]) / peak if peak > 0 else 0.0
-        if dd > max_drawdown:
-            max_drawdown = dd
-            max_drawdown_idx = i
-
-    max_drawdown_date = str(dates[max_drawdown_idx].date())
-    buy_count = trade_count - sell_count
-
-    mean_ret = float(np.mean(dr))
-    std_ret  = float(np.std(dr))
-    rf_daily = 0.04 / 365.0
-    sharpe_ratio = 0.0
-    if std_ret > 0:
-        sharpe_ratio = ((mean_ret - rf_daily) / std_ret) * np.sqrt(365.0)
-
-    win_rate = float(wins) / sell_count if sell_count > 0 else 0.0
+    bh_values, benchmark_metrics = _compute_benchmark_metrics(
+        prices_open=prices_open,
+        prices_close=prices_close,
+        initial_cash=params.initial_cash,
+        fee_rate=params.fee_rate,
+    )
 
     # ── Portfolio history DataFrame ───────────────────────────────────────────
     portfolio_history = pd.DataFrame({
-        "date":            dates,
+        "date": dates,
         "portfolio_value": pv,
-        "cash":            cash_arr,
-        "btc_held":        btc_arr,
-        "btc_close":       prices_close,
+        "cash": cash_arr,
+        "btc_held": btc_arr,
+        "btc_close": prices_close,
+        "buy_and_hold_value": bh_values,
     }).set_index("date")
 
-    # ── Buy & Hold benchmark ──────────────────────────────────────────────────
-    # Use open[0] entry with fee deducted — matches CLI behavior exactly
-    _bh_btc   = (initial_cash * (1.0 - fee_rate)) / prices_open[0]
-    bh_values = _bh_btc * prices_close
-    bh_return = (_bh_btc * prices_close[-1] - initial_cash) / initial_cash
-    bh_daily_ret = np.diff(prices_close) / prices_close[:-1]
-    bh_daily_ret = np.concatenate([[0.0], bh_daily_ret])
-
-    bh_mdd = 0.0
-    bh_peak = prices_close[0]
-    for p in prices_close:
-        if p > bh_peak:
-            bh_peak = p
-        bh_dd = (bh_peak - p) / bh_peak if bh_peak > 0 else 0.0
-        if bh_dd > bh_mdd:
-            bh_mdd = bh_dd
-
-    bh_mean = float(np.mean(bh_daily_ret))
-    bh_std  = float(np.std(bh_daily_ret))
-    bh_sharpe = ((bh_mean - rf_daily) / bh_std * np.sqrt(365.0)) if bh_std > 0 else 0.0
-
-    portfolio_history["buy_and_hold_value"] = bh_values
-
-    # ── Trade log ─────────────────────────────────────────────────────────────
+    # ── Trade log DataFrame ───────────────────────────────────────────────────
     trade_log = pd.DataFrame(trade_rows) if trade_rows else pd.DataFrame(
         columns=[
             "Date", "Action", "BTC Price", "Amount (USD)",
@@ -342,35 +395,10 @@ def run_backtest_full(
     return SimulationResult(
         portfolio_history=portfolio_history,
         trade_log=trade_log,
-        metrics={
-            "total_return":          total_return,
-            "max_drawdown":          max_drawdown,
-            "max_drawdown_date":     max_drawdown_date,
-            "sharpe_ratio":          sharpe_ratio,
-            "win_rate":              win_rate,
-            "trade_count":           trade_count,
-            "buy_count":             buy_count,
-            "sell_count":            sell_count,
-            "final_cash":            float(cash_arr[-1]),
-            "final_btc":             float(btc_arr[-1]),
-            "final_portfolio_value": float(pv[-1]),
-        },
-        benchmark_metrics={
-            "total_return": bh_return,
-            "max_drawdown": bh_mdd,
-            "sharpe_ratio": bh_sharpe,
-            "final_value":  float(bh_values[-1]),
-        },
+        metrics=strategy_metrics,
+        benchmark_metrics=benchmark_metrics,
         low_sample_warning=(trade_count < 10),
-        params={
-            "threshold_buy":   threshold_buy,
-            "threshold_sell":  threshold_sell,
-            "alloc_buy_pct":   alloc_buy_pct,
-            "alloc_sell_pct":  alloc_sell_pct,
-            "initial_cash":    initial_cash,
-            "fee_rate":        fee_rate,
-            "signal_column":   signal_column,
-        },
+        params=params,
     )
 
 

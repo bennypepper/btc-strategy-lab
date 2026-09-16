@@ -16,6 +16,7 @@ from core.data_loader import load_smart_dataset, load_research_results
 from core.engine import warmup_numba
 from core.styles import inject_css, ICON_ZAP, ICON_CHART_BARS, ICON_BOOK
 from core.utils import format_currency
+from core.keepalive import inject_keepalive
 
 # ── Page configuration ────────────────────────────────────────────────────────
 st.set_page_config(
@@ -39,6 +40,7 @@ st.markdown(
 
 # ── Global design-system CSS (shared across all pages) ───────────────────────
 inject_css()
+inject_keepalive()
 
 # ── Numba warmup + data preload (cached for session) ─────────────────────────
 @st.cache_resource

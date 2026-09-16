@@ -15,6 +15,7 @@ Methodology update (2026-04-27):
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 import pandas as pd
@@ -22,6 +23,8 @@ import streamlit as st
 import yfinance as yf
 
 from core.trolololo import compute_trolololo
+
+logger = logging.getLogger(__name__)
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 _ROOT = Path(__file__).resolve().parents[1]
@@ -58,7 +61,7 @@ def load_smart_dataset() -> pd.DataFrame:
     start_fetch = (last_date + pd.Timedelta(days=1)).strftime('%Y-%m-%d')
     
     try:
-        raw_new = yf.download("BTC-USD", start=start_fetch, auto_adjust=True, progress=False)
+        raw_new = yf.download("BTC-USD", start=start_fetch, auto_adjust=True, progress=False, timeout=8.0)
         
         if not raw_new.empty:
             if isinstance(raw_new.columns, pd.MultiIndex):
@@ -86,8 +89,8 @@ def load_smart_dataset() -> pd.DataFrame:
             return df_combined
             
     except Exception as e:
-        # Graceful fallback: If yfinance is down or rate-limited, just return static dataset.
-        print(f"Failed to fetch live delta data: {e}. Falling back to static dataset.")
+        # Graceful fallback: If yfinance is down, timed out, or rate-limited, fall back to static dataset.
+        logger.warning("Failed to fetch live delta data from yfinance: %s. Falling back to static dataset.", e)
     
     return df_static
 
@@ -106,6 +109,8 @@ def get_dataset_slice(
 @st.cache_data(show_spinner=False)
 def load_research_results() -> dict:
     """Load optimal_params_summary.json (Phase 3 output)."""
+    if not RESULTS_PATH.exists():
+        raise FileNotFoundError(f"Research results file not found at {RESULTS_PATH}")
     with open(RESULTS_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
 

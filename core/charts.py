@@ -478,25 +478,36 @@ def _research_layout(fig: go.Figure, title: str, height: int) -> go.Figure:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def build_is_oos_equity_chart(
-    df: pd.DataFrame,
-    params: dict,
+    data: pd.DataFrame | SimulationResult,
+    params: dict | None = None,
     title: str = "In-Sample vs Out-of-Sample Equity",
+    split_date: str = "2021-01-01",
 ) -> go.Figure:
-    from core.engine import run_backtest_full
+    """
+    Equity curve comparing In-Sample (2012-2020) vs Out-of-Sample (2021-2026).
+    Accepts either a SimulationResult or a pre-computed portfolio_history DataFrame.
+    """
+    if isinstance(data, SimulationResult):
+        ph = data.portfolio_history.copy()
+    elif isinstance(data, pd.DataFrame) and "portfolio_value" in data.columns:
+        ph = data.copy()
+    elif isinstance(data, pd.DataFrame) and params is not None:
+        # Backward-compatibility fallback if raw dataset slice and params are provided
+        from core.engine import run_backtest_full
+        result = run_backtest_full(
+            data,
+            threshold_buy=int(params["threshold_buy"]),
+            threshold_sell=int(params["threshold_sell"]),
+            alloc_buy_pct=float(params["allocation_buy_pct"]),
+            alloc_sell_pct=float(params["allocation_sell_pct"]),
+            initial_cash=100_000.0,
+            fee_rate=0.001,
+        )
+        ph = result.portfolio_history.copy()
+    else:
+        raise ValueError("data must be a SimulationResult or DataFrame containing 'portfolio_value'")
 
-    result = run_backtest_full(
-        df,
-        threshold_buy=int(params["threshold_buy"]),
-        threshold_sell=int(params["threshold_sell"]),
-        alloc_buy_pct=float(params["allocation_buy_pct"]),
-        alloc_sell_pct=float(params["allocation_sell_pct"]),
-        initial_cash=100_000.0,
-        fee_rate=0.001,
-    )
-
-    ph = result.portfolio_history.copy()
     ph.index = pd.to_datetime(ph.index)
-    split_date = "2021-01-01"
 
     # Weekly resample
     ph_w = _weekly(ph, ["portfolio_value", "buy_and_hold_value"])

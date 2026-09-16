@@ -37,7 +37,9 @@ def _load_scenario_params(results: dict, obj_key: str) -> dict:
             alloc_buy      = int(round(p["allocation_buy_pct"]  * 100)),
             alloc_sell     = int(round(p["allocation_sell_pct"] * 100)),
         )
-    except (KeyError, TypeError):
+    except (KeyError, TypeError) as exc:
+        import logging
+        logging.getLogger(__name__).warning("Unable to parse optimal params for %s: %s. Using default fallback.", obj_key, exc)
         return FALLBACKS.get(obj_key, FALLBACKS["max_return"])
 
 CUSTOM_LABEL = "🔧 Custom (Manual Configuration)"
@@ -454,13 +456,20 @@ with col_results:
         st.plotly_chart(chart_cbbi, width='stretch')
 
         # ── Auto-generated summary text ───────────────────────────────────────
-        period_yrs = (pd.Timestamp(end_date) - pd.Timestamp(start_date)).days / 365
+        executed_params = result.params
+        exec_buy = executed_params.threshold_buy
+        exec_sell = executed_params.threshold_sell
+        
+        ph_idx = result.portfolio_history.index
+        period_days = max(1, (ph_idx.max() - ph_idx.min()).days)
+        period_yrs = period_days / 365.0
+        
         buys  = m.get("buy_count", 0)
         sells = m.get("sell_count", 0)
         pv_fmt = format_currency(final_pv).replace('$', r'\$')
         bh_fmt = format_currency(final_bh).replace('$', r'\$')
         st.info(
-            f"**Summary:** With a Buy Threshold of **{threshold_buy}** and Sell Threshold of **{threshold_sell}**, "
+            f"**Summary:** With a Buy Threshold of **{exec_buy}** and Sell Threshold of **{exec_sell}**, "
             f"the strategy generated a **{format_percentage(m['total_return']*100)} total return** "
             f"over {period_yrs:.1f} years, compared to **{format_percentage(bm['total_return']*100)}** with HODL. "
             f"Total **{m['trade_count']} trades** (🟢 {buys} buys · 🔴 {sells} sells) "
