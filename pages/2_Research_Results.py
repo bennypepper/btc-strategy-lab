@@ -153,13 +153,11 @@ def _render_scenario1_tab(obj_key: str):
         if oos_data["trade_count"] == 0:
             st.markdown(
                 "<div style='background:rgba(10,124,110,0.08); border-left:4px solid #0a7c6e; padding:0.85rem 1rem; margin-top:0.5rem; font-size:0.84rem; line-height:1.6;'>"
-                "<b>📊 No OOS trades triggered, as expected with independent Logarithmic Regression</b><br>"
+                "<b>📊 No OOS trades triggered with independent Logarithmic Regression</b><br>"
                 f"The optimal buy threshold is <b>{int(is_data['threshold_buy'])}</b> (Index ≤ {int(is_data['threshold_buy'])}%). "
-                "With the independently computed Logarithmic Regression (log regression on BTC-USD prices, re-calibrated 2026-04-27), "
+                "With the independently computed Logarithmic Regression (immutable pre-2026 confirmed cycle-mark calibration), "
                 "the signal never fell below this threshold during the OOS period (2021–2026). "
-                "No buy signals means no sell signals, so all metrics show 0. "
-                "This is a research finding: the Min Drawdown strategy's extreme selectivity prevents any activity "
-                "in the bull/sideways market conditions of 2021–2026."
+                "No buy signals means no sell signals, so all metrics show 0."
                 "</div>",
                 unsafe_allow_html=True,
             )
@@ -340,7 +338,7 @@ st.markdown(
     "<div style='opacity:0.5; font-size:0.85rem; margin-bottom:1rem;'>"
     "Each cell shows the maximum total return achievable at that "
     "(Buy Threshold, Sell Threshold) combination, across all allocation percentages. "
-    "Large files — may take a few seconds to load."
+    "Pre-aggregated from 1,293,750 parameter combinations."
     "</div>",
     unsafe_allow_html=True,
 )
@@ -350,7 +348,7 @@ hc1, hc2 = st.columns(2)
 with hc1:
     st.markdown("**Scenario 1 — In-Sample Sensitivity**")
     if st.button("Load S1 Heatmap", key="load_s1_hm"):
-        with st.spinner("Building Scenario 1 heatmap..."):
+        with st.spinner("Loading Scenario 1 heatmap..."):
             pivot = load_heatmap_pivot(1, metric="total_return")
             fig_hm = build_sensitivity_heatmap(
                 pivot,
@@ -361,7 +359,7 @@ with hc1:
 with hc2:
     st.markdown("**Scenario 2 — Full Dataset Sensitivity**")
     if st.button("Load S2 Heatmap", key="load_s2_hm"):
-        with st.spinner("Building Scenario 2 heatmap..."):
+        with st.spinner("Loading Scenario 2 heatmap..."):
             pivot = load_heatmap_pivot(2, metric="total_return")
             fig_hm = build_sensitivity_heatmap(
                 pivot,

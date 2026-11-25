@@ -32,9 +32,9 @@ def _load_scenario_params(results: dict, obj_key: str) -> dict:
     Reads scenario_2.full_dataset.<obj_key> from the JSON results file.
     """
     fallbacks = {
-        "max_return": {"threshold_buy": 45, "threshold_sell": 64, "alloc_buy": 25, "alloc_sell": 25},
-        "min_drawdown": {"threshold_buy": 1, "threshold_sell": 55, "alloc_buy": 1, "alloc_sell": 25},
-        "max_sharpe": {"threshold_buy": 13, "threshold_sell": 100, "alloc_buy": 25, "alloc_sell": 1},
+        "max_return": {"threshold_buy": 7, "threshold_sell": 96, "alloc_buy": 25, "alloc_sell": 14},
+        "min_drawdown": {"threshold_buy": 1, "threshold_sell": 64, "alloc_buy": 1, "alloc_sell": 23},
+        "max_sharpe": {"threshold_buy": 4, "threshold_sell": 59, "alloc_buy": 25, "alloc_sell": 3},
     }
     try:
         p = results["scenario_2"]["full_dataset"][obj_key]

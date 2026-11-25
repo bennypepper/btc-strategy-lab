@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 _ROOT = Path(__file__).resolve().parents[1]
 DATASET_PATH = _ROOT / "data" / "master_dataset.parquet"
 RESULTS_PATH = _ROOT / "data" / "optimal_params_summary.json"
+RESEARCH_DIR = _ROOT / "data" / "research"
 TRIAL_LOG_DIR = _ROOT / "data" / "trial_log"
 
 SCENARIO_1_LOG = TRIAL_LOG_DIR / "scenario_1_grid_search_in_sample.parquet"
@@ -104,7 +105,7 @@ def load_smart_dataset() -> pd.DataFrame:
             )
             df_combined = df_combined.loc[valid_prices].copy()
 
-            df_combined["trolololo"] = compute_trolololo(df_combined["btc_close"])
+            df_combined["trolololo"] = compute_trolololo(df_combined["btc_close"].dropna())
 
             # Only forward-fill cosmetic CBBI columns; never ffill prices or trolololo.
             cosmetic_cols = [
@@ -113,7 +114,10 @@ def load_smart_dataset() -> pd.DataFrame:
                 if col not in ("btc_close", "btc_open", "trolololo")
             ]
             if cosmetic_cols:
-                df_combined[cosmetic_cols] = df_combined[cosmetic_cols].ffill()
+                with pd.option_context("future.no_silent_downcasting", True):
+                    df_combined[cosmetic_cols] = (
+                        df_combined[cosmetic_cols].ffill().infer_objects(copy=False)
+                    )
 
             df_combined.attrs["is_live"] = True
             return df_combined
@@ -150,12 +154,22 @@ def load_research_results() -> dict:
 @st.cache_data(ttl=1800, max_entries=1, show_spinner="Loading Scenario 1 trial log...")
 def load_scenario1_log(columns: list[str] | None = None) -> pd.DataFrame:
     """Load Scenario 1 (IS) trial log. Cached with bounded TTL."""
+    if not SCENARIO_1_LOG.exists():
+        raise FileNotFoundError(
+            f"Scenario 1 trial log not found at {SCENARIO_1_LOG}. "
+            f"Use pre-aggregated artifacts in {RESEARCH_DIR}."
+        )
     return pd.read_parquet(SCENARIO_1_LOG, columns=columns)
 
 
 @st.cache_data(ttl=1800, max_entries=1, show_spinner="Loading Scenario 2 trial log...")
 def load_scenario2_log(columns: list[str] | None = None) -> pd.DataFrame:
     """Load Scenario 2 (Full) trial log. Cached with bounded TTL."""
+    if not SCENARIO_2_LOG.exists():
+        raise FileNotFoundError(
+            f"Scenario 2 trial log not found at {SCENARIO_2_LOG}. "
+            f"Use pre-aggregated artifacts in {RESEARCH_DIR}."
+        )
     return pd.read_parquet(SCENARIO_2_LOG, columns=columns)
 
 
@@ -167,24 +181,52 @@ def _scenario_log_path(scenario: int) -> Path:
     raise ValueError(f"Unsupported scenario: {scenario}. Expected 1 or 2.")
 
 
-@st.cache_data(ttl=1800, max_entries=1, show_spinner="Building sensitivity heatmap...")
+def _validate_scenario_and_metric(scenario: int, metric: str) -> Path:
+    """Validate scenario (1 or 2) and metric, returning the raw trial log fallback path."""
+    if metric not in ALLOWED_TRIAL_METRICS:
+        raise ValueError(f"Unsupported metric: {metric}")
+    return _scenario_log_path(scenario)
+
+
+@st.cache_data(ttl=1800, max_entries=1, show_spinner=False)
 def load_heatmap_pivot(scenario: int, metric: str = "total_return") -> pd.DataFrame:
-    """Load only threshold and metric columns and return the aggregated heatmap matrix."""
-    if metric not in ALLOWED_TRIAL_METRICS:
-        raise ValueError(f"Unsupported metric: {metric}")
-    path = _scenario_log_path(scenario)
-    df_cols = pd.read_parquet(path, columns=["threshold_buy", "threshold_sell", metric])
-    return build_heatmap_matrix(df_cols, metric=metric)
+    """
+    Load the pre-aggregated sensitivity heatmap matrix from `data/research/`,
+    falling back to raw trial logs if present on disk.
+    """
+    fallback_path = _validate_scenario_and_metric(scenario, metric)
+    preagg_path = RESEARCH_DIR / f"s{scenario}_heatmap_{metric}.parquet"
+    if preagg_path.exists():
+        return pd.read_parquet(preagg_path)
+    if fallback_path.exists():
+        df_cols = pd.read_parquet(
+            fallback_path, columns=["threshold_buy", "threshold_sell", metric]
+        )
+        return build_heatmap_matrix(df_cols, metric=metric)
+    raise FileNotFoundError(
+        f"Heatmap artifact not found at {preagg_path} and fallback log missing at {fallback_path}."
+    )
 
 
-@st.cache_data(ttl=1800, max_entries=1, show_spinner="Loading top 100 trials...")
+@st.cache_data(ttl=1800, max_entries=1, show_spinner=False)
 def load_top100_trials(scenario: int, metric: str = "total_return") -> pd.DataFrame:
-    """Load a scenario trial log and cache only the top 100 rows ranked by `metric`."""
-    if metric not in ALLOWED_TRIAL_METRICS:
-        raise ValueError(f"Unsupported metric: {metric}")
-    path = _scenario_log_path(scenario)
-    df_log = pd.read_parquet(path)
-    return df_log.nlargest(100, metric).reset_index(drop=True)
+    """
+    Load the pre-aggregated Top-100 trials CSV from `data/research/`,
+    falling back to raw trial logs if present on disk.
+    """
+    fallback_path = _validate_scenario_and_metric(scenario, metric)
+    candidates = [RESEARCH_DIR / f"s{scenario}_top100_{metric}.csv"]
+    if metric == "total_return":
+        candidates.append(RESEARCH_DIR / f"s{scenario}_top100_max_return.csv")
+    for csv_path in candidates:
+        if csv_path.exists():
+            return pd.read_csv(csv_path)
+    if fallback_path.exists():
+        df_log = pd.read_parquet(fallback_path)
+        return df_log.nlargest(100, metric).reset_index(drop=True)
+    raise FileNotFoundError(
+        f"Top-100 artifact not found in {RESEARCH_DIR} and fallback log missing at {fallback_path}."
+    )
 
 
 def build_heatmap_matrix(

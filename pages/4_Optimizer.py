@@ -12,10 +12,13 @@ resolves the "Index Revision Bias" documented in our research limitations.
 from __future__ import annotations
 
 import datetime as _dt
+import hmac
 import html
 import logging
+import os
 
 import streamlit as st
+from streamlit.errors import StreamlitAPIException
 
 from core.data_loader import load_smart_dataset
 from core.optimizer import (
@@ -43,6 +46,23 @@ inject_css()
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
+
+def _get_admin_passcode() -> str | None:
+    """Return admin passcode from env var or Streamlit Secrets, or None if unset."""
+    env_val = os.environ.get("BTC_LAB_ADMIN_PASSCODE", "").strip()
+    if env_val:
+        return env_val
+    try:
+        secret_val = st.secrets.get("ADMIN_PASSCODE")
+    except (FileNotFoundError, KeyError, OSError, StreamlitAPIException):
+        # st.secrets raises FileNotFoundError/StreamlitSecretNotFoundError when no secrets.toml exists
+        return None
+    if secret_val is not None:
+        stripped = str(secret_val).strip()
+        if stripped:
+            return stripped
+    return None
 
 
 def _fmt_pct(v: float) -> str:
@@ -142,7 +162,7 @@ with col_d:
     <div class="metric-card">
       <div class="metric-label">Total Combinations</div>
       <div class="metric-value">{n_combos:,}</div>
-      <div class="metric-subtext">Parallel Numba execution</div>
+      <div class="metric-subtext">O(1)-RAM streaming Numba</div>
     </div>""",
         unsafe_allow_html=True,
     )
@@ -260,15 +280,47 @@ st.markdown(
                 font-size:0.88rem;color:var(--muted)">
       This will fetch the latest BTC price data from <strong>Yahoo Finance</strong>,
       compute Logarithmic Regression, then run
-      <strong>{n_combos:,} parallel backtests</strong> using Numba JIT compilation.
+      <strong>{n_combos:,} parallel backtests</strong> using an
+      <strong>O(1)-RAM streaming Numba JIT kernel</strong> (~8.6&nbsp;KB buffer).
       Typical runtime: <strong>5&ndash;20 seconds</strong> depending on your CPU.
+      For offline/CI regeneration of all research artifacts, run
+      <code>python scripts/regenerate_artifacts.py</code>.
     </div>""",
     unsafe_allow_html=True,
 )
 
-run_btn = st.button("⚙️ Run Optimization", type="primary", width="stretch")
+expected_passcode = _get_admin_passcode()
+is_unlocked = False
+if expected_passcode:
+    entered_passcode = st.text_input(
+        "Admin Passcode",
+        type="password",
+        key="opt_admin_passcode",
+        help="Required to unlock live grid-search optimization.",
+    )
+    if entered_passcode:
+        if hmac.compare_digest(
+            entered_passcode.encode("utf-8"),
+            expected_passcode.encode("utf-8"),
+        ):
+            is_unlocked = True
+        else:
+            st.warning("⚠️ Incorrect admin passcode.")
+else:
+    st.info(
+        "🔒 Live re-optimization is locked in public read-only mode. "
+        "Set `ADMIN_PASSCODE` in Streamlit Secrets or `BTC_LAB_ADMIN_PASSCODE` "
+        "environment variable to unlock."
+    )
 
-if run_btn:
+run_btn = st.button(
+    "⚙️ Run Optimization",
+    type="primary",
+    width="stretch",
+    disabled=not is_unlocked,
+)
+
+if run_btn and is_unlocked:
     progress_bar = st.progress(0.0)
     status_text = st.empty()
 

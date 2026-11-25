@@ -193,9 +193,9 @@ This application presents results from a 4-phase academic research project.
 #### Phase 1: Data Pipeline
 - **Source 1:** CBBI official dataset (XLSX from cbbi.info) containing 8 on-chain sub-indicators and composite score (`cbbi_confidence`)
 - **Source 2:** BTC-USD daily prices from yfinance (`BTC-USD`) used for `btc_open` (T+1 execution) and `btc_close`
-- **Logarithmic Regression *(Updated 2026-04-28)*:** `trolololo` is **not** sourced from the CBBI XLSX. It is computed independently from `btc_close` using the **Dynamic Channel Normalization** formula (`core/trolololo.py`). This uses two power-law base channels and adaptive linear drift regression at cycle peaks/troughs. This eliminates *Index Revision Bias*, preventing retroactive CBBI formula updates from silently shifting historical signal values.
+- **Logarithmic Regression *(Immutable Confirmed-Cycle Calibration)*:** `trolololo` is **not** sourced from the CBBI XLSX. It is computed independently from `btc_close` using **Dynamic Channel Normalization** (`core/trolololo.py`), fitting two power-law base channels and linear drift regressions over calendar days `d_raw` using only immutable pre-2026 confirmed cycle marks (`CONFIRMED_HIGHS` 2013–2021 and `CONFIRMED_LOWS` 2012–2022, `include_algo_marks=False` by default). This eliminates post-2026 `argrelextrema` lookahead and *Index Revision Bias*, guaranteeing historical signal values never shift when new live prices are appended.
 - Preprocessing: string parsing → float64, forward fill ≤ 7 days, date alignment
-- Static dataset snapshot: 2012-01-01 to 2026-03-15 (5,188 trading days)
+- Static dataset snapshot: 2012-01-01 to 2026-03-15 (5,188 total rows; 5,187 clean backtestable rows from 2012-01-02 to 2026-03-15 after dropping the 2012-01-01 origin row where `d_raw = 0`)
 - Validation: `validate_no_lookahead()` confirmed no backward fill was applied
 
 #### Phase 2: Indicator Selection
@@ -205,10 +205,13 @@ This application presents results from a 4-phase academic research project.
 - Composite score: `0.6 × |max_spearman_rho| + 0.4 × (1 - min_p_value_normalized)`
 - Result: **Logarithmic Regression** ranked highest and was selected as the primary signal
 
-#### Phase 3: Optimization Engine
+#### Phase 3: Optimization Engine & Artifacts
 - Algorithm: **Grid Search** (exhaustive, deterministic)
 - Parameter space: `45 × 46 × 25 × 25 = 1,293,750` combinations per run
-- Parallelization: `numba.prange` + Numba JIT (`@njit(parallel=True)`) for grid search execution
+- Parallelization & Memory: `numba.prange` + Numba JIT (`@njit(parallel=True)`) using an **O(1)-RAM streaming reduction kernel** (~8.6 KB per-buy buffer instead of materializing multi-MB trial tables in memory)
+- Pre-aggregated artifacts: `scripts/regenerate_artifacts.py` generates `optimal_params_summary.json`, `live_optimal_params.json`, and lightweight `data/research/` artifacts (46×45 sensitivity heatmap Parquets and Top-100 CSVs)
+- Live Optimizer security: Page 4 requires admin authentication (`BTC_LAB_ADMIN_PASSCODE` env var or `ADMIN_PASSCODE` in Streamlit Secrets, verified with constant-time `hmac.compare_digest`) and defaults to read-only locked mode when unset
+- CI verification: Automated `.github/workflows/ci.yml` runs `pip check`, `ruff check .`, and `pytest -v` on Python 3.11
 - 6 runs total: 2 scenarios × 3 objectives (Max Return, Min Drawdown, Max Sharpe)
 
 #### Two Scenarios Explained
