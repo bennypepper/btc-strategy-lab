@@ -6,7 +6,9 @@ Prevents session timeouts and automatic container sleeps during user inactivity.
 """
 
 from __future__ import annotations
+
 import streamlit.components.v1 as components
+
 
 def inject_keepalive(interval_seconds: int = 240) -> None:
     """
@@ -16,7 +18,8 @@ def inject_keepalive(interval_seconds: int = 240) -> None:
     to keep the WebSocket connection active and prevent Streamlit Community Cloud from
     suspending the container due to idle viewer detection.
     """
-    interval_ms = interval_seconds * 1000
+    clamped_seconds = max(30, int(interval_seconds))
+    interval_ms = clamped_seconds * 1000
     js_code = f"""
     <script>
     (function() {{
@@ -24,7 +27,7 @@ def inject_keepalive(interval_seconds: int = 240) -> None:
         window.__keepalive_active = true;
         setInterval(function() {{
             try {{
-                window.parent.postMessage({{type: 'streamlit:keepalive', timestamp: Date.now()}}, '*');
+                window.parent.postMessage({{type: 'streamlit:keepalive', timestamp: Date.now()}}, window.location.origin);
             }} catch (e) {{}}
             try {{
                 fetch(window.location.href, {{method: 'HEAD', mode: 'no-cors', cache: 'no-store'}}).catch(function() {{}});

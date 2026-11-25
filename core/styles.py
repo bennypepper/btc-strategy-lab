@@ -19,6 +19,16 @@ _GLOBAL_CSS = """
   /* ── Google Fonts ── */
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Work+Sans:wght@300;400;500;600&family=Inter:wght@400;500;600&display=swap');
 
+  /* ── Design tokens ── */
+  :root {
+    --accent: #0a7c6e;
+    --muted: #547792;
+    --text: #213448;
+    --bg-card: #ffffff;
+    --bg-secondary: #f2ede6;
+    --border: #c9c2b8;
+  }
+
   /* ── Base reset ── */
   html, body, [class*="css"] {
     font-family: 'Work Sans', sans-serif;
@@ -481,7 +491,7 @@ def inject_css() -> None:
     st.sidebar.markdown(
         "<div style='text-align: center; color: #64748b; font-size: 0.8rem; line-height: 1.5;'>"
         "Built with ☕ by <br>"
-        "<a href='https://github.com/bennypepper' target='_blank' style='color: #0a7c6e; font-weight: 600; text-decoration: none;'>Benedict Pepper</a><br>"
+        "<a href='https://github.com/bennypepper' target='_blank' rel='noopener noreferrer' style='color: #0a7c6e; font-weight: 600; text-decoration: none;'>Benedict Pepper</a><br>"
         "Ma Chung University<br>"
         "PKL Research © 2026"
         "</div>", 

@@ -24,48 +24,48 @@ Key design decisions
    but the line uses a moderate smoothing factor.
 
 5. All chart functions return go.Figure so they are rendered with
-   st.plotly_chart(..., use_container_width=True).
+   st.plotly_chart(..., width="stretch").
 """
 
 from __future__ import annotations
 
-import plotly.graph_objects as go
-import plotly.express as px
-from plotly.subplots import make_subplots
-import pandas as pd
 import numpy as np
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 from core.engine import SimulationResult
-
 
 # ── Light-theme color palette ─────────────────────────────────────────────────
 # Background: #fff8f1 (cream)  Text: #213448 (dark navy)
 
 COLORS = {
-    "strategy":      "#0a7c6e",      # teal — primary strategy line
-    "benchmark":     "#d97706",      # amber — B&H / HODL
-    "buy_marker":    "#16a34a",      # green
-    "sell_marker":   "#dc2626",      # red
+    "strategy": "#0a7c6e",  # teal — primary strategy line
+    "benchmark": "#d97706",  # amber — B&H / HODL
+    "buy_marker": "#16a34a",  # green
+    "sell_marker": "#dc2626",  # red
     "buy_zone_fill": "rgba(22,163,74,0.09)",
-    "sell_zone_fill":"rgba(220,38,38,0.08)",
-    "signal_line":   "#0369a1",      # blue — Trolololo index
-    "text":          "#213448",      # dark navy — matches Streamlit theme
-    "text_muted":    "rgba(33,52,72,0.45)",
-    "grid":          "rgba(33,52,72,0.08)",
-    "axis_line":     "rgba(33,52,72,0.20)",
+    "sell_zone_fill": "rgba(220,38,38,0.08)",
+    "signal_line": "#0369a1",  # blue — Trolololo index
+    "text": "#213448",  # dark navy — matches Streamlit theme
+    "text_muted": "rgba(33,52,72,0.45)",
+    "grid": "rgba(33,52,72,0.08)",
+    "axis_line": "rgba(33,52,72,0.20)",
 }
 
-_FONT  = "Space Grotesk, Inter, Work Sans, sans-serif"
-_TEXT  = COLORS["text"]
+_FONT = "Space Grotesk, Inter, Work Sans, sans-serif"
+_TEXT = COLORS["text"]
 _MUTED = COLORS["text_muted"]
-_GRID  = COLORS["grid"]
+_GRID = COLORS["grid"]
 
 # Transparent bg so Streamlit's cream shows through
 _PAPER = "rgba(0,0,0,0)"
-_PLOT  = "rgba(0,0,0,0)"
+_PLOT = "rgba(0,0,0,0)"
 
 
 # ── Compact log-scale dollar tick generator ───────────────────────────────────
+
 
 def _log_dollar_ticks(min_v: float, max_v: float) -> tuple[list[float], list[str]]:
     """1-2-5 multiples per decade, compact labels: $500 $1K $2K $5K $10K …"""
@@ -73,10 +73,14 @@ def _log_dollar_ticks(min_v: float, max_v: float) -> tuple[list[float], list[str
         min_v = 1.0
 
     def _fmt(v: float) -> str:
-        if v >= 1e12: return f"${v/1e12:.4g}T"
-        if v >= 1e9:  return f"${v/1e9:.4g}B"
-        if v >= 1e6:  return f"${v/1e6:.4g}M"
-        if v >= 1e3:  return f"${v/1e3:.4g}K"
+        if v >= 1e12:
+            return f"${v / 1e12:.4g}T"
+        if v >= 1e9:
+            return f"${v / 1e9:.4g}B"
+        if v >= 1e6:
+            return f"${v / 1e6:.4g}M"
+        if v >= 1e3:
+            return f"${v / 1e3:.4g}K"
         return f"${v:.4g}"
 
     lo = int(np.floor(np.log10(min_v)))
@@ -84,7 +88,7 @@ def _log_dollar_ticks(min_v: float, max_v: float) -> tuple[list[float], list[str
     vals: list[float] = []
     for exp in range(lo, hi):
         for m in [1, 2, 5]:
-            v = m * (10 ** exp)
+            v = m * (10**exp)
             if min_v * 0.4 <= v <= max_v * 2.5:
                 vals.append(v)
     vals = sorted(set(vals))
@@ -97,13 +101,17 @@ def _compact_dollar_tickvals(min_v: float, max_v: float) -> tuple[list, list]:
         min_v = 1.0
     lo = int(np.floor(np.log10(min_v)))
     hi = int(np.ceil(np.log10(max_v)))
-    vals = [10.0 ** d for d in range(lo, hi + 1)]
+    vals = [10.0**d for d in range(lo, hi + 1)]
 
     def _fmt(v: float) -> str:
-        if v >= 1e12: return f"${v/1e12:.4g}T"
-        if v >= 1e9:  return f"${v/1e9:.4g}B"
-        if v >= 1e6:  return f"${v/1e6:.4g}M"
-        if v >= 1e3:  return f"${v/1e3:.4g}K"
+        if v >= 1e12:
+            return f"${v / 1e12:.4g}T"
+        if v >= 1e9:
+            return f"${v / 1e9:.4g}B"
+        if v >= 1e6:
+            return f"${v / 1e6:.4g}M"
+        if v >= 1e3:
+            return f"${v / 1e3:.4g}K"
         return f"${v:.4g}"
 
     return vals, [_fmt(v) for v in vals]
@@ -111,57 +119,72 @@ def _compact_dollar_tickvals(min_v: float, max_v: float) -> tuple[list, list]:
 
 # ── Shared axis / layout helpers ──────────────────────────────────────────────
 
+
 def _xaxis(dtick: str = "M12") -> dict:
-    return dict(
-        showgrid=True, gridcolor=_GRID, gridwidth=1,
-        zeroline=False, showline=False,
-        tickfont=dict(family=_FONT, size=11, color=_TEXT),
-        title=None,
-        dtick=dtick, tickformat="%Y",
-    )
+    return {
+        "showgrid": True,
+        "gridcolor": _GRID,
+        "gridwidth": 1,
+        "zeroline": False,
+        "showline": False,
+        "tickfont": {"family": _FONT, "size": 11, "color": _TEXT},
+        "title": None,
+        "dtick": dtick,
+        "tickformat": "%Y",
+    }
 
 
 def _yaxis_linear(title: str | None = None) -> dict:
-    return dict(
-        showgrid=True, gridcolor=_GRID, gridwidth=1,
-        zeroline=False, showline=False,
-        tickfont=dict(family=_FONT, size=11, color=_TEXT),
-        title=dict(text=title, font=dict(color=_TEXT, size=11)) if title else None,
-    )
+    return {
+        "showgrid": True,
+        "gridcolor": _GRID,
+        "gridwidth": 1,
+        "zeroline": False,
+        "showline": False,
+        "tickfont": {"family": _FONT, "size": 11, "color": _TEXT},
+        "title": {"text": title, "font": {"color": _TEXT, "size": 11}} if title else None,
+    }
 
 
 def _legend_top() -> dict:
-    return dict(
-        orientation="h", x=0, y=1.02, yanchor="bottom",
-        bgcolor="rgba(0,0,0,0)", bordercolor="rgba(0,0,0,0)", borderwidth=0,
-        font=dict(size=11, family=_FONT, color=_TEXT),
-    )
+    return {
+        "orientation": "h",
+        "x": 0,
+        "y": 1.02,
+        "yanchor": "bottom",
+        "bgcolor": "rgba(0,0,0,0)",
+        "bordercolor": "rgba(0,0,0,0)",
+        "borderwidth": 0,
+        "font": {"size": 11, "family": _FONT, "color": _TEXT},
+    }
 
 
 def _base_layout(title: str, height: int, extra_margin_t: int = 100) -> dict:
-    return dict(
-        paper_bgcolor=_PAPER,
-        plot_bgcolor=_PLOT,
-        font=dict(color=_TEXT, family=_FONT, size=12),
-        title=dict(
-            text=title,
-            font=dict(size=14, color=_TEXT, family=_FONT),
-            x=0.0, xanchor="left",
-            pad=dict(l=0, t=0, b=10),
-        ),
-        height=height,
-        hovermode="x unified",
-        hoverlabel=dict(
-            bgcolor="rgba(255,255,255,0.95)",
-            bordercolor=COLORS["grid"],
-            font=dict(color=_TEXT, size=11, family=_FONT),
-        ),
-        legend=_legend_top(),
-        margin=dict(l=70, r=24, t=extra_margin_t, b=44),
-    )
+    return {
+        "paper_bgcolor": _PAPER,
+        "plot_bgcolor": _PLOT,
+        "font": {"color": _TEXT, "family": _FONT, "size": 12},
+        "title": {
+            "text": title,
+            "font": {"size": 14, "color": _TEXT, "family": _FONT},
+            "x": 0.0,
+            "xanchor": "left",
+            "pad": {"l": 0, "t": 0, "b": 10},
+        },
+        "height": height,
+        "hovermode": "x unified",
+        "hoverlabel": {
+            "bgcolor": "rgba(255,255,255,0.95)",
+            "bordercolor": COLORS["grid"],
+            "font": {"color": _TEXT, "size": 11, "family": _FONT},
+        },
+        "legend": _legend_top(),
+        "margin": {"l": 70, "r": 24, "t": extra_margin_t, "b": 44},
+    }
 
 
 # ── Weekly resampler ──────────────────────────────────────────────────────────
+
 
 def _weekly(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
     """
@@ -175,6 +198,7 @@ def _weekly(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
 # ══════════════════════════════════════════════════════════════════════════════
 # Chart 1: Equity Curve
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 def build_equity_chart(result: SimulationResult) -> go.Figure:
     """
@@ -201,48 +225,79 @@ def build_equity_chart(result: SimulationResult) -> go.Figure:
 
     fig = go.Figure()
 
-    # ── Invisible zero-baseline so tonexty fills from bottom of chart area ─────
-    # We fill the strategy area by stacking: zero-line (invisible) → strategy →
-    # this avoids the "stalagmite" problem of tozeroy on log scale.
-    # On log scale, tozeroy would mean filling to log(0) = -∞ at every point.
-    # Instead we use a transparent fill between B&H and strategy.
-
     # Draw B&H first (bottom layer)
-    fig.add_trace(go.Scatter(
-        x=ph_w.index, y=ph_w["buy_and_hold_value"],
-        name="Buy & Hold",
-        line=dict(color=COLORS["benchmark"], width=1.5, dash="dot",
-                  shape="spline", smoothing=1.0),
-        mode="lines",
-        opacity=0.75,
-        hovertemplate="Buy & Hold: <b>%{y:$,.0f}</b><extra></extra>",
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=ph_w.index,
+            y=ph_w["buy_and_hold_value"],
+            name="Buy & Hold",
+            line={
+                "color": COLORS["benchmark"],
+                "width": 1.5,
+                "dash": "dot",
+                "shape": "spline",
+                "smoothing": 1.0,
+            },
+            mode="lines",
+            opacity=0.75,
+            hovertemplate="Buy & Hold: <b>%{y:$,.0f}</b><extra></extra>",
+        )
+    )
 
     # Strategy line with fill from B&H line (tonexty = fill between these two)
-    fig.add_trace(go.Scatter(
-        x=ph_w.index, y=ph_w["portfolio_value"],
-        name="Strategy Equity",
-        line=dict(color=COLORS["strategy"], width=1.8,
-                  shape="spline", smoothing=1.0),
-        fill="tonexty",
-        fillcolor="rgba(10,124,110,0.08)",
-        mode="lines",
-        hovertemplate="Strategy Equity: <b>%{y:$,.0f}</b><extra></extra>",
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=ph_w.index,
+            y=ph_w["portfolio_value"],
+            name="Strategy Equity",
+            line={"color": COLORS["strategy"], "width": 1.8, "shape": "spline", "smoothing": 1.0},
+            fill="tonexty",
+            fillcolor="rgba(10,124,110,0.08)",
+            mode="lines",
+            hovertemplate="Strategy Equity: <b>%{y:$,.0f}</b><extra></extra>",
+        )
+    )
 
     # ── Trade markers on strategy line ────────────────────────────────────────
-    if not tlog.empty:
-        # Map trade dates to nearest weekly portfolio value
+    if not tlog.empty and not ph_w.empty:
         ph_w_idx = ph_w["portfolio_value"]
 
         tlog_first = tlog.loc[tlog["Action"] != tlog["Action"].shift()].copy()
         tlog_rest = tlog.loc[tlog["Action"] == tlog["Action"].shift()].copy()
 
         for trades, symbol, color, label, show_leg, m_size in [
-            (tlog_first[tlog_first["Action"] == "BUY"],  "triangle-up",   COLORS["buy_marker"],  "Buy Signal", True, 11),
-            (tlog_first[tlog_first["Action"] == "SELL"], "triangle-down", COLORS["sell_marker"], "Sell Signal", True, 11),
-            (tlog_rest[tlog_rest["Action"] == "BUY"],    "circle",        COLORS["buy_marker"],  "Subsequent Buys", False, 6),
-            (tlog_rest[tlog_rest["Action"] == "SELL"],   "circle",        COLORS["sell_marker"], "Subsequent Sells", False, 6),
+            (
+                tlog_first[tlog_first["Action"] == "BUY"],
+                "triangle-up",
+                COLORS["buy_marker"],
+                "Buy Signal",
+                True,
+                11,
+            ),
+            (
+                tlog_first[tlog_first["Action"] == "SELL"],
+                "triangle-down",
+                COLORS["sell_marker"],
+                "Sell Signal",
+                True,
+                11,
+            ),
+            (
+                tlog_rest[tlog_rest["Action"] == "BUY"],
+                "circle",
+                COLORS["buy_marker"],
+                "Subsequent Buys",
+                False,
+                6,
+            ),
+            (
+                tlog_rest[tlog_rest["Action"] == "SELL"],
+                "circle",
+                COLORS["sell_marker"],
+                "Subsequent Sells",
+                False,
+                6,
+            ),
         ]:
             if trades.empty:
                 continue
@@ -251,40 +306,57 @@ def build_equity_chart(result: SimulationResult) -> go.Figure:
             trades = trades[trades["value"] > 0]
             if trades.empty:
                 continue
-            
-            customdata = np.stack((trades["BTC Price"].values, trades["Amount (USD)"].values), axis=-1)
+
+            customdata = np.stack(
+                (trades["BTC Price"].values, trades["Amount (USD)"].values), axis=-1
+            )
             act_name = "Buy" if "BUY" in trades["Action"].values[0] else "Sell"
-            
-            fig.add_trace(go.Scatter(
-                x=trades["Date"], y=trades["value"],
-                name=label,
-                mode="markers",
-                showlegend=show_leg,
-                customdata=customdata,
-                hovertemplate=f"{act_name}: <b>%{{customdata[1]:$,.0f}}</b> @ <b>%{{customdata[0]:$,.0f}}</b><extra></extra>",
-                marker=dict(
-                    symbol=symbol, color=color,
-                    size=m_size, opacity=0.85,
-                    line=dict(width=0),
-                ),
-            ))
+
+            fig.add_trace(
+                go.Scatter(
+                    x=trades["Date"],
+                    y=trades["value"],
+                    name=label,
+                    mode="markers",
+                    showlegend=show_leg,
+                    customdata=customdata,
+                    hovertemplate=(
+                        f"{act_name}: <b>%{{customdata[1]:$,.0f}}</b>"
+                        f" @ <b>%{{customdata[0]:$,.0f}}</b><extra></extra>"
+                    ),
+                    marker={
+                        "symbol": symbol,
+                        "color": color,
+                        "size": m_size,
+                        "opacity": 0.85,
+                        "line": {"width": 0},
+                    },
+                )
+            )
 
     # ── Log Y axis ─────────────────────────────────────────────────────────────
     all_vals = pd.concat([ph_w["portfolio_value"], ph_w["buy_and_hold_value"]]).dropna()
     all_vals = all_vals[all_vals > 0]
-    vmin, vmax = float(all_vals.min()), float(all_vals.max())
-    tick_vals, tick_texts = _log_dollar_ticks(vmin, vmax)
+    if all_vals.empty:
+        tick_vals, tick_texts = [1e2, 1e4, 1e6], ["$100", "$10K", "$1M"]
+    else:
+        vmin, vmax = float(all_vals.min()), float(all_vals.max())
+        tick_vals, tick_texts = _log_dollar_ticks(vmin, vmax)
 
     layout = _base_layout("Equity Curve — Strategy vs Buy & Hold", height=440)
     layout["xaxis"] = _xaxis()
-    layout["yaxis"] = dict(
-        type="log",
-        tickvals=tick_vals, ticktext=tick_texts,
-        showgrid=True, gridcolor=_GRID, gridwidth=1,
-        zeroline=False, showline=False,
-        tickfont=dict(family=_FONT, size=11, color=_TEXT),
-        title=None,
-    )
+    layout["yaxis"] = {
+        "type": "log",
+        "tickvals": tick_vals,
+        "ticktext": tick_texts,
+        "showgrid": True,
+        "gridcolor": _GRID,
+        "gridwidth": 1,
+        "zeroline": False,
+        "showline": False,
+        "tickfont": {"family": _FONT, "size": 11, "color": _TEXT},
+        "title": None,
+    }
     fig.update_layout(**layout)
     return fig
 
@@ -292,6 +364,7 @@ def build_equity_chart(result: SimulationResult) -> go.Figure:
 # ══════════════════════════════════════════════════════════════════════════════
 # Chart 2: Trolololo Signal
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 def build_signal_chart(
     df: pd.DataFrame,
@@ -316,109 +389,172 @@ def build_signal_chart(
     sig_df = df[[signal_column]].reset_index()
     sig_df.columns = ["date", "signal"]
     sig_df["date"] = pd.to_datetime(sig_df["date"])
-    sig_df = sig_df[sig_df["signal"] > 0.001].copy()
+    sig_df = sig_df.dropna(subset=["signal"]).copy()
 
     n = len(sig_df)
     dates = sig_df["date"]
 
     fig = go.Figure()
 
-    # ── Buy zone: 0 → threshold_buy filled green ──────────────────────────────
-    fig.add_trace(go.Scatter(
-        x=dates, y=[0.0] * n,
-        mode="lines", line=dict(width=0),
-        showlegend=False, hoverinfo="skip",
-    ))
-    fig.add_trace(go.Scatter(
-        x=dates, y=[float(threshold_buy)] * n,
-        name=f"Buy Zone (≤{threshold_buy})",
-        mode="lines", line=dict(width=0),
-        fill="tonexty",
-        fillcolor=COLORS["buy_zone_fill"],
-        showlegend=False,
-        hoverinfo="skip",
-    ))
+    if n > 0:
+        # ── Buy zone: 0 → threshold_buy filled green ──────────────────────────
+        fig.add_trace(
+            go.Scatter(
+                x=dates,
+                y=[0.0] * n,
+                mode="lines",
+                line={"width": 0},
+                showlegend=False,
+                hoverinfo="skip",
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=dates,
+                y=[float(threshold_buy)] * n,
+                name=f"Buy Zone (≤{threshold_buy})",
+                mode="lines",
+                line={"width": 0},
+                fill="tonexty",
+                fillcolor=COLORS["buy_zone_fill"],
+                showlegend=False,
+                hoverinfo="skip",
+            )
+        )
 
-    # ── Sell zone: threshold_sell → 100 filled red ────────────────────────────
-    fig.add_trace(go.Scatter(
-        x=dates, y=[float(threshold_sell)] * n,
-        mode="lines", line=dict(width=0),
-        showlegend=False, hoverinfo="skip",
-    ))
-    fig.add_trace(go.Scatter(
-        x=dates, y=[100.0] * n,
-        name=f"Sell Zone (≥{threshold_sell})",
-        mode="lines", line=dict(width=0),
-        fill="tonexty",
-        fillcolor=COLORS["sell_zone_fill"],
-        showlegend=False,
-        hoverinfo="skip",
-    ))
+        # ── Sell zone: threshold_sell → 100 filled red ────────────────────────
+        fig.add_trace(
+            go.Scatter(
+                x=dates,
+                y=[float(threshold_sell)] * n,
+                mode="lines",
+                line={"width": 0},
+                showlegend=False,
+                hoverinfo="skip",
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=dates,
+                y=[100.0] * n,
+                name=f"Sell Zone (≥{threshold_sell})",
+                mode="lines",
+                line={"width": 0},
+                fill="tonexty",
+                fillcolor=COLORS["sell_zone_fill"],
+                showlegend=False,
+                hoverinfo="skip",
+            )
+        )
 
-    # ── Signal line ────────────────────────────────────────────────────────────
-    fig.add_trace(go.Scatter(
-        x=sig_df["date"], y=sig_df["signal"],
-        name="Regression Index",
-        mode="lines",
-        line=dict(
-            color=COLORS["signal_line"], width=1.6,
-            shape="spline", smoothing=0.6,
-        ),
-        hovertemplate="Regression Index: <b>%{y:.1f}%</b><extra></extra>",
-    ))
+        # ── Signal line ───────────────────────────────────────────────────────
+        fig.add_trace(
+            go.Scatter(
+                x=sig_df["date"],
+                y=sig_df["signal"],
+                name="Regression Index",
+                mode="lines",
+                line={
+                    "color": COLORS["signal_line"],
+                    "width": 1.6,
+                    "shape": "spline",
+                    "smoothing": 0.6,
+                },
+                hovertemplate="Regression Index: <b>%{y:.1f}%</b><extra></extra>",
+            )
+        )
 
     # ── Threshold dashed horizontal lines ─────────────────────────────────────
     fig.add_hline(
         y=threshold_buy,
-        line=dict(color=COLORS["buy_marker"], width=1.5, dash="dash"),
+        line={"color": COLORS["buy_marker"], "width": 1.5, "dash": "dash"},
         annotation_text=f"Buy ≤ {threshold_buy}",
         annotation_position="top left",
-        annotation_font=dict(color=COLORS["buy_marker"], size=11, family=_FONT),
+        annotation_font={"color": COLORS["buy_marker"], "size": 11, "family": _FONT},
     )
     fig.add_hline(
         y=threshold_sell,
-        line=dict(color=COLORS["sell_marker"], width=1.5, dash="dash"),
+        line={"color": COLORS["sell_marker"], "width": 1.5, "dash": "dash"},
         annotation_text=f"Sell ≥ {threshold_sell}",
         annotation_position="top left",
-        annotation_font=dict(color=COLORS["sell_marker"], size=11, family=_FONT),
+        annotation_font={"color": COLORS["sell_marker"], "size": 11, "family": _FONT},
     )
 
     # ── Trade markers ─────────────────────────────────────────────────────────
-    if trade_log is not None and not trade_log.empty:
+    if trade_log is not None and not trade_log.empty and n > 0:
         tlog = trade_log.copy()
         tlog["Date"] = pd.to_datetime(tlog["Date"])
-        
+
         tlog_first = tlog.loc[tlog["Action"] != tlog["Action"].shift()].copy()
         tlog_rest = tlog.loc[tlog["Action"] == tlog["Action"].shift()].copy()
 
         sig_idx = sig_df.set_index("date")["signal"]
 
         for subset, symbol, color, label, show_leg, m_size in [
-            (tlog_first[tlog_first["Action"] == "BUY"],  "triangle-up",   COLORS["buy_marker"],  "Buy Signal", True, 11),
-            (tlog_first[tlog_first["Action"] == "SELL"], "triangle-down", COLORS["sell_marker"], "Sell Signal", True, 11),
-            (tlog_rest[tlog_rest["Action"] == "BUY"],    "circle",        COLORS["buy_marker"],  "Subsequent Buys", False, 6),
-            (tlog_rest[tlog_rest["Action"] == "SELL"],   "circle",        COLORS["sell_marker"], "Subsequent Sells", False, 6),
+            (
+                tlog_first[tlog_first["Action"] == "BUY"],
+                "triangle-up",
+                COLORS["buy_marker"],
+                "Buy Signal",
+                True,
+                11,
+            ),
+            (
+                tlog_first[tlog_first["Action"] == "SELL"],
+                "triangle-down",
+                COLORS["sell_marker"],
+                "Sell Signal",
+                True,
+                11,
+            ),
+            (
+                tlog_rest[tlog_rest["Action"] == "BUY"],
+                "circle",
+                COLORS["buy_marker"],
+                "Subsequent Buys",
+                False,
+                6,
+            ),
+            (
+                tlog_rest[tlog_rest["Action"] == "SELL"],
+                "circle",
+                COLORS["sell_marker"],
+                "Subsequent Sells",
+                False,
+                6,
+            ),
         ]:
             if subset.empty:
                 continue
             subset = subset.copy()
             subset["signal"] = sig_idx.reindex(subset["Date"], method="nearest").values
-            
-            customdata = np.stack((subset["BTC Price"].values, subset["Amount (USD)"].values), axis=-1)
+
+            customdata = np.stack(
+                (subset["BTC Price"].values, subset["Amount (USD)"].values), axis=-1
+            )
             act_name = "Buy" if "BUY" in subset["Action"].values[0] else "Sell"
-            
-            fig.add_trace(go.Scatter(
-                x=subset["Date"], y=subset["signal"],
-                name=label, mode="markers",
-                showlegend=show_leg,
-                customdata=customdata,
-                hovertemplate=f"{act_name}: <b>%{{customdata[1]:$,.0f}}</b> @ <b>%{{customdata[0]:$,.0f}}</b><extra></extra>",
-                marker=dict(
-                    symbol=symbol, color=color,
-                    size=m_size, opacity=0.85,
-                    line=dict(width=0),
-                ),
-            ))
+
+            fig.add_trace(
+                go.Scatter(
+                    x=subset["Date"],
+                    y=subset["signal"],
+                    name=label,
+                    mode="markers",
+                    showlegend=show_leg,
+                    customdata=customdata,
+                    hovertemplate=(
+                        f"{act_name}: <b>%{{customdata[1]:$,.0f}}</b>"
+                        f" @ <b>%{{customdata[0]:$,.0f}}</b><extra></extra>"
+                    ),
+                    marker={
+                        "symbol": symbol,
+                        "color": color,
+                        "size": m_size,
+                        "opacity": 0.85,
+                        "line": {"width": 0},
+                    },
+                )
+            )
 
     layout = _base_layout(
         f"Regression Index with Signals  —  Buy ≤ {threshold_buy}  |  Sell ≥ {threshold_sell}",
@@ -426,49 +562,57 @@ def build_signal_chart(
         extra_margin_t=100,
     )
     layout["xaxis"] = _xaxis()
-    layout["yaxis"] = dict(
-        range=[-3, 107],
-        showgrid=True, gridcolor=_GRID, gridwidth=1,
-        zeroline=False, showline=False,
-        tickvals=[0, 20, 40, 60, 80, 100],
-        tickfont=dict(family=_FONT, size=11, color=_TEXT),
-        title=dict(text="Regression Index (0–100)", font=dict(color=_TEXT, size=11)),
-    )
+    layout["yaxis"] = {
+        "range": [-3, 107],
+        "showgrid": True,
+        "gridcolor": _GRID,
+        "gridwidth": 1,
+        "zeroline": False,
+        "showline": False,
+        "tickvals": [0, 20, 40, 60, 80, 100],
+        "tickfont": {"family": _FONT, "size": 11, "color": _TEXT},
+        "title": {"text": "Regression Index (0–100)", "font": {"color": _TEXT, "size": 11}},
+    }
     fig.update_layout(**layout)
     return fig
 
 
 # ── Shared research-page base layout ─────────────────────────────────────────
 
+
 def _research_layout(fig: go.Figure, title: str, height: int) -> go.Figure:
     fig.update_layout(
         paper_bgcolor=_PAPER,
         plot_bgcolor=_PLOT,
-        font=dict(color=_TEXT, family=_FONT, size=12),
-        title=dict(
-            text=title,
-            font=dict(size=14, color=_TEXT, family=_FONT),
-            x=0.02,
-        ),
+        font={"color": _TEXT, "family": _FONT, "size": 12},
+        title={
+            "text": title,
+            "font": {"size": 14, "color": _TEXT, "family": _FONT},
+            "x": 0.02,
+        },
         height=height,
         hovermode="x unified",
-        hoverlabel=dict(
-            bgcolor="rgba(255,255,255,0.95)",
-            bordercolor=_GRID,
-            font=dict(color=_TEXT, size=11, family=_FONT),
-        ),
+        hoverlabel={
+            "bgcolor": "rgba(255,255,255,0.95)",
+            "bordercolor": _GRID,
+            "font": {"color": _TEXT, "size": 11, "family": _FONT},
+        },
         legend=_legend_top(),
-        margin=dict(l=70, r=24, t=100, b=44),
-        xaxis=dict(
-            showgrid=True, gridcolor=_GRID,
-            zeroline=False, showline=False,
-            tickfont=dict(family=_FONT, size=11, color=_TEXT),
-        ),
-        yaxis=dict(
-            showgrid=True, gridcolor=_GRID,
-            zeroline=False, showline=False,
-            tickfont=dict(family=_FONT, size=11, color=_TEXT),
-        ),
+        margin={"l": 70, "r": 24, "t": 100, "b": 44},
+        xaxis={
+            "showgrid": True,
+            "gridcolor": _GRID,
+            "zeroline": False,
+            "showline": False,
+            "tickfont": {"family": _FONT, "size": 11, "color": _TEXT},
+        },
+        yaxis={
+            "showgrid": True,
+            "gridcolor": _GRID,
+            "zeroline": False,
+            "showline": False,
+            "tickfont": {"family": _FONT, "size": 11, "color": _TEXT},
+        },
     )
     return fig
 
@@ -476,6 +620,7 @@ def _research_layout(fig: go.Figure, title: str, height: int) -> go.Figure:
 # ══════════════════════════════════════════════════════════════════════════════
 # Chart 3: IS vs OOS Equity (Research page)
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 def build_is_oos_equity_chart(
     data: pd.DataFrame | SimulationResult,
@@ -494,6 +639,7 @@ def build_is_oos_equity_chart(
     elif isinstance(data, pd.DataFrame) and params is not None:
         # Backward-compatibility fallback if raw dataset slice and params are provided
         from core.engine import run_backtest_full
+
         result = run_backtest_full(
             data,
             threshold_buy=int(params["threshold_buy"]),
@@ -512,51 +658,62 @@ def build_is_oos_equity_chart(
     # Weekly resample
     ph_w = _weekly(ph, ["portfolio_value", "buy_and_hold_value"])
 
-    is_w  = ph_w[ph_w.index < split_date]
+    is_w = ph_w[ph_w.index < split_date]
     oos_w = ph_w[ph_w.index >= split_date]
 
     fig = go.Figure()
 
     # B&H (bottom layer, dashed amber)
-    fig.add_trace(go.Scatter(
-        x=ph_w.index, y=ph_w["buy_and_hold_value"],
-        name="Buy & Hold",
-        line=dict(color=COLORS["benchmark"], width=1.5, dash="dot",
-                  shape="spline", smoothing=1.0),
-        opacity=0.75,
-        hovertemplate="%{x|%Y-%m-%d}&nbsp;<b>$%{y:,.0f}</b><extra>B&H</extra>",
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=ph_w.index,
+            y=ph_w["buy_and_hold_value"],
+            name="Buy & Hold",
+            line={
+                "color": COLORS["benchmark"],
+                "width": 1.5,
+                "dash": "dot",
+                "shape": "spline",
+                "smoothing": 1.0,
+            },
+            opacity=0.75,
+            hovertemplate="%{x|%Y-%m-%d}&nbsp;<b>$%{y:,.0f}</b><extra>B&H</extra>",
+        )
+    )
 
     # IS strategy (teal, fill to B&H)
-    fig.add_trace(go.Scatter(
-        x=is_w.index, y=is_w["portfolio_value"],
-        name="Strategy IS (2012–2020)",
-        line=dict(color=COLORS["strategy"], width=1.8,
-                  shape="spline", smoothing=1.0),
-        fill="tonexty",
-        fillcolor="rgba(10,124,110,0.09)",
-        hovertemplate="%{x|%Y-%m-%d}&nbsp;<b>$%{y:,.0f}</b><extra>IS Strategy</extra>",
-    ))
+    fig.add_trace(
+        go.Scatter(
+            x=is_w.index,
+            y=is_w["portfolio_value"],
+            name="Strategy IS (2012–2020)",
+            line={"color": COLORS["strategy"], "width": 1.8, "shape": "spline", "smoothing": 1.0},
+            fill="tonexty",
+            fillcolor="rgba(10,124,110,0.09)",
+            hovertemplate="%{x|%Y-%m-%d}&nbsp;<b>$%{y:,.0f}</b><extra>IS Strategy</extra>",
+        )
+    )
 
-    # OOS strategy (blue, no fill — sits visually separate)
-    fig.add_trace(go.Scatter(
-        x=oos_w.index, y=oos_w["portfolio_value"],
-        name="Strategy OOS (2021–2026)",
-        line=dict(color="#0369a1", width=1.8,
-                  shape="spline", smoothing=1.0),
-        fill="tonexty",
-        fillcolor="rgba(3,105,161,0.07)",
-        hovertemplate="%{x|%Y-%m-%d}&nbsp;<b>$%{y:,.0f}</b><extra>OOS Strategy</extra>",
-    ))
+    # OOS strategy (blue, no fill — sits visually separate from IS)
+    fig.add_trace(
+        go.Scatter(
+            x=oos_w.index,
+            y=oos_w["portfolio_value"],
+            name="Strategy OOS (2021–2026)",
+            line={"color": "#0369a1", "width": 1.8, "shape": "spline", "smoothing": 1.0},
+            fill="none",
+            hovertemplate="%{x|%Y-%m-%d}&nbsp;<b>$%{y:,.0f}</b><extra>OOS Strategy</extra>",
+        )
+    )
 
     # IS | OOS split vertical line
     split_ts = int(pd.Timestamp(split_date).timestamp() * 1000)
     fig.add_vline(
         x=split_ts,
-        line=dict(color=COLORS["axis_line"], width=1.2, dash="dash"),
+        line={"color": COLORS["axis_line"], "width": 1.2, "dash": "dash"},
         annotation_text="IS | OOS split",
         annotation_position="top",
-        annotation_font=dict(color=_MUTED, size=10, family=_FONT),
+        annotation_font={"color": _MUTED, "size": 10, "family": _FONT},
     )
 
     # Log Y
@@ -564,19 +721,23 @@ def build_is_oos_equity_chart(
     all_v = all_v[all_v > 0]
     tick_vals, tick_texts = (
         _compact_dollar_tickvals(float(all_v.min()), float(all_v.max()))
-        if len(all_v) else ([1e2, 1e4, 1e6], ["$100", "$10K", "$1M"])
+        if len(all_v)
+        else ([1e2, 1e4, 1e6], ["$100", "$10K", "$1M"])
     )
 
     _research_layout(fig, title, height=360)
     fig.update_layout(
-        yaxis=dict(
-            type="log",
-            tickvals=tick_vals, ticktext=tick_texts,
-            title=dict(text="Portfolio Value", font=dict(color=_TEXT, size=11)),
-            showgrid=True, gridcolor=_GRID,
-            zeroline=False, showline=False,
-            tickfont=dict(family=_FONT, size=11, color=_TEXT),
-        ),
+        yaxis={
+            "type": "log",
+            "tickvals": tick_vals,
+            "ticktext": tick_texts,
+            "title": {"text": "Portfolio Value", "font": {"color": _TEXT, "size": 11}},
+            "showgrid": True,
+            "gridcolor": _GRID,
+            "zeroline": False,
+            "showline": False,
+            "tickfont": {"family": _FONT, "size": 11, "color": _TEXT},
+        },
     )
     return fig
 
@@ -585,42 +746,48 @@ def build_is_oos_equity_chart(
 # Chart 4: Degradation Bar
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 def build_degradation_chart(degradation: dict) -> go.Figure:
     objectives = list(degradation.keys())
     metric_labels = {
-        "return_degradation_pct":   "Return Degradation %",
-        "sharpe_degradation_pct":   "Sharpe Degradation %",
+        "return_degradation_pct": "Return Degradation %",
+        "sharpe_degradation_pct": "Sharpe Degradation %",
         "drawdown_degradation_pct": "Drawdown Change %",
     }
     metric_colors = {
-        "return_degradation_pct":   COLORS["sell_marker"],
-        "sharpe_degradation_pct":   "#f87171",
+        "return_degradation_pct": COLORS["sell_marker"],
+        "sharpe_degradation_pct": "#f87171",
         "drawdown_degradation_pct": "#d97706",
     }
 
     fig = go.Figure()
     for metric_key, metric_label in metric_labels.items():
         values = [degradation[obj].get(metric_key, 0) for obj in objectives]
-        fig.add_trace(go.Bar(
-            name=metric_label,
-            x=[o.replace("_", " ").title() for o in objectives],
-            y=values,
-            marker_color=metric_colors[metric_key],
-            marker_line=dict(width=0),
-            opacity=0.85,
-            hovertemplate=f"<b>{metric_label}</b>: %{{y:.1f}}%<extra></extra>",
-        ))
+        fig.add_trace(
+            go.Bar(
+                name=metric_label,
+                x=[o.replace("_", " ").title() for o in objectives],
+                y=values,
+                marker_color=metric_colors[metric_key],
+                marker_line={"width": 0},
+                opacity=0.85,
+                hovertemplate=f"<b>{metric_label}</b>: %{{y:.1f}}%<extra></extra>",
+            )
+        )
 
     _research_layout(fig, "IS → OOS Performance Degradation by Objective", height=320)
     fig.update_layout(
         barmode="group",
-        yaxis=dict(
-            ticksuffix="%",
-            title=dict(text="Degradation (%)", font=dict(color=_TEXT, size=11)),
-            showgrid=True, gridcolor=_GRID,
-            zeroline=True, zerolinecolor=COLORS["axis_line"], zerolinewidth=1,
-            tickfont=dict(family=_FONT, size=11, color=_TEXT),
-        ),
+        yaxis={
+            "ticksuffix": "%",
+            "title": {"text": "Degradation (%)", "font": {"color": _TEXT, "size": 11}},
+            "showgrid": True,
+            "gridcolor": _GRID,
+            "zeroline": True,
+            "zerolinecolor": COLORS["axis_line"],
+            "zerolinewidth": 1,
+            "tickfont": {"family": _FONT, "size": 11, "color": _TEXT},
+        },
     )
     return fig
 
@@ -629,13 +796,20 @@ def build_degradation_chart(degradation: dict) -> go.Figure:
 # Chart 5: Sensitivity Heatmap
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 def build_sensitivity_heatmap(
     pivot_df: pd.DataFrame,
     title: str = "Return Sensitivity: Buy vs Sell Threshold",
     metric_label: str = "Total Return",
 ) -> go.Figure:
     display_df = pivot_df.copy()
-    p99 = float(np.nanpercentile(display_df.values, 99))
+    raw_vals = display_df.to_numpy(dtype=float) if not display_df.empty else np.array([])
+    if display_df.empty or np.isnan(raw_vals).all():
+        fig = go.Figure()
+        _research_layout(fig, title, height=440)
+        return fig
+
+    p99 = float(np.nanpercentile(raw_vals, 99))
     display_df = display_df.clip(upper=p99)
 
     x_labels = [int(c) for c in display_df.columns]
@@ -643,30 +817,33 @@ def build_sensitivity_heatmap(
 
     fig = px.imshow(
         display_df.values,
-        x=x_labels, y=y_labels,
+        x=x_labels,
+        y=y_labels,
         color_continuous_scale="RdYlGn",
         aspect="auto",
-        labels=dict(x="Buy Threshold", y="Sell Threshold", color=metric_label),
+        labels={"x": "Buy Threshold", "y": "Sell Threshold", "color": metric_label},
     )
-    fig.update_traces(hovertemplate=(
-        "Buy Threshold: <b>%{x}</b><br>"
-        "Sell Threshold: <b>%{y}</b><br>"
-        f"{metric_label}: <b>%{{z:,.1f}}</b><extra></extra>"
-    ))
+    fig.update_traces(
+        hovertemplate=(
+            "Buy Threshold: <b>%{x}</b><br>"
+            "Sell Threshold: <b>%{y}</b><br>"
+            f"{metric_label}: <b>%{{z:,.1f}}</b><extra></extra>"
+        )
+    )
     _research_layout(fig, title, height=440)
     fig.update_layout(
-        coloraxis_colorbar=dict(
-            title=dict(text=metric_label, font=dict(size=11, color=_TEXT)),
-            tickfont=dict(size=10, family=_FONT, color=_TEXT),
-        ),
-        xaxis=dict(
-            title=dict(text="Buy Threshold", font=dict(color=_TEXT, size=11)),
-            tickfont=dict(family=_FONT, size=10, color=_TEXT),
-        ),
-        yaxis=dict(
-            title=dict(text="Sell Threshold", font=dict(color=_TEXT, size=11)),
-            tickfont=dict(family=_FONT, size=10, color=_TEXT),
-        ),
+        coloraxis_colorbar={
+            "title": {"text": metric_label, "font": {"size": 11, "color": _TEXT}},
+            "tickfont": {"size": 10, "family": _FONT, "color": _TEXT},
+        },
+        xaxis={
+            "title": {"text": "Buy Threshold", "font": {"color": _TEXT, "size": 11}},
+            "tickfont": {"family": _FONT, "size": 10, "color": _TEXT},
+        },
+        yaxis={
+            "title": {"text": "Sell Threshold", "font": {"color": _TEXT, "size": 11}},
+            "tickfont": {"family": _FONT, "size": 10, "color": _TEXT},
+        },
     )
     return fig
 
@@ -675,120 +852,169 @@ def build_sensitivity_heatmap(
 # Chart 6: Performance Comparison (3-panel bar)
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 def build_comparison_chart(results: dict) -> go.Figure:
     """
     Three-panel grouped bar: Total Return (log scale) | Max Drawdown | Sharpe.
     All axis labels fully readable on light background.
     """
-    s1_oos  = results["scenario_1"]["out_of_sample"]["max_return"]
+    s1_oos = results["scenario_1"]["out_of_sample"]["max_return"]
     s2_full = results["scenario_2"]["full_dataset"]["max_return"]
-    bh_oos  = results["buy_and_hold_benchmark"]["out_of_sample"]
+    bh_oos = results["buy_and_hold_benchmark"]["out_of_sample"]
 
     scenarios = ["S1 OOS\n(Validated)", "S2 Full\n(Exploration)", "Buy & Hold\n(OOS)"]
-    colors    = [COLORS["strategy"], "#7c3aed", COLORS["benchmark"]]
+    colors = [COLORS["strategy"], "#7c3aed", COLORS["benchmark"]]
 
-    def _pct(v):     return v * 100
-    def _s(d, k):    return d.get(k, 0) or 0
+    def _pct(v):
+        return v * 100
 
-    returns   = [_pct(_s(s1_oos, "total_return")),
-                 _pct(_s(s2_full, "total_return")),
-                 _pct(_s(bh_oos,  "total_return"))]
-    drawdowns = [_pct(_s(s1_oos, "max_drawdown")),
-                 _pct(_s(s2_full, "max_drawdown")),
-                 _pct(_s(bh_oos,  "max_drawdown"))]
-    sharpes   = [_s(s1_oos, "sharpe_ratio"),
-                 _s(s2_full, "sharpe_ratio"),
-                 _s(bh_oos,  "sharpe_ratio")]
+    def _s(d, k):
+        return d.get(k, 0) or 0
+
+    returns = [
+        _pct(_s(s1_oos, "total_return")),
+        _pct(_s(s2_full, "total_return")),
+        _pct(_s(bh_oos, "total_return")),
+    ]
+    drawdowns = [
+        _pct(_s(s1_oos, "max_drawdown")),
+        _pct(_s(s2_full, "max_drawdown")),
+        _pct(_s(bh_oos, "max_drawdown")),
+    ]
+    sharpes = [
+        _s(s1_oos, "sharpe_ratio"),
+        _s(s2_full, "sharpe_ratio"),
+        _s(bh_oos, "sharpe_ratio"),
+    ]
 
     fig = make_subplots(
-        rows=1, cols=3,
+        rows=1,
+        cols=3,
         subplot_titles=["Total Return (%)", "Max Drawdown (%)", "Sharpe Ratio"],
         horizontal_spacing=0.10,
     )
 
     for i, (scen, col) in enumerate(zip(scenarios, colors)):
         label = scen.replace("\n", " ")
-        fig.add_trace(go.Bar(
-            name=label, x=[label], y=[returns[i]], marker_color=col,
-            marker_line=dict(width=0), opacity=0.85,
-            showlegend=(i == 0),
-            hovertemplate=f"<b>{label}</b><br>Return: %{{y:,.1f}}%<extra></extra>",
-        ), row=1, col=1)
-        fig.add_trace(go.Bar(
-            name=label, x=[label], y=[drawdowns[i]], marker_color=col,
-            marker_line=dict(width=0), opacity=0.85,
-            showlegend=False,
-            hovertemplate=f"<b>{label}</b><br>Drawdown: %{{y:.1f}}%<extra></extra>",
-        ), row=1, col=2)
-        fig.add_trace(go.Bar(
-            name=label, x=[label], y=[sharpes[i]], marker_color=col,
-            marker_line=dict(width=0), opacity=0.85,
-            showlegend=False,
-            hovertemplate=f"<b>{label}</b><br>Sharpe: %{{y:.3f}}<extra></extra>",
-        ), row=1, col=3)
+        fig.add_trace(
+            go.Bar(
+                name=label,
+                x=[label],
+                y=[returns[i]],
+                marker_color=col,
+                marker_line={"width": 0},
+                opacity=0.85,
+                showlegend=(i == 0),
+                hovertemplate=f"<b>{label}</b><br>Return: %{{y:,.1f}}%<extra></extra>",
+            ),
+            row=1,
+            col=1,
+        )
+        fig.add_trace(
+            go.Bar(
+                name=label,
+                x=[label],
+                y=[drawdowns[i]],
+                marker_color=col,
+                marker_line={"width": 0},
+                opacity=0.85,
+                showlegend=False,
+                hovertemplate=f"<b>{label}</b><br>Drawdown: %{{y:.1f}}%<extra></extra>",
+            ),
+            row=1,
+            col=2,
+        )
+        fig.add_trace(
+            go.Bar(
+                name=label,
+                x=[label],
+                y=[sharpes[i]],
+                marker_color=col,
+                marker_line={"width": 0},
+                opacity=0.85,
+                showlegend=False,
+                hovertemplate=f"<b>{label}</b><br>Sharpe: %{{y:.3f}}<extra></extra>",
+            ),
+            row=1,
+            col=3,
+        )
 
     # Log scale for Total Return panel
     ret_pos = [r for r in returns if r > 0]
     if ret_pos:
         lo = max(0, int(np.floor(np.log10(min(ret_pos)))))
         hi = int(np.ceil(np.log10(max(ret_pos)))) + 1
-        log_ticks = [10.0 ** d for d in range(lo, hi)]
+        log_ticks = [10.0**d for d in range(lo, hi)]
 
         def _pct_fmt(v: float) -> str:
-            if v >= 1e9: return f"{v/1e9:.4g}B%"
-            if v >= 1e6: return f"{v/1e6:.4g}M%"
-            if v >= 1e3: return f"{v/1e3:.4g}K%"
+            if v >= 1e9:
+                return f"{v / 1e9:.4g}B%"
+            if v >= 1e6:
+                return f"{v / 1e6:.4g}M%"
+            if v >= 1e3:
+                return f"{v / 1e3:.4g}K%"
             return f"{v:.4g}%"
 
         log_tick_texts = [_pct_fmt(v) for v in log_ticks]
     else:
         log_ticks, log_tick_texts = [1, 100, 10000], ["1%", "100%", "10K%"]
 
-    _tick_font = dict(family=_FONT, size=10, color=_TEXT)
+    _tick_font = {"family": _FONT, "size": 10, "color": _TEXT}
 
     fig.update_yaxes(
-        type="log", tickvals=log_ticks, ticktext=log_tick_texts,
+        type="log",
+        tickvals=log_ticks,
+        ticktext=log_tick_texts,
         title_text="Return (%)",
-        title_font=dict(color=_TEXT, size=11),
+        title_font={"color": _TEXT, "size": 11},
         tickfont=_tick_font,
-        showgrid=True, gridcolor=_GRID,
-        row=1, col=1,
+        showgrid=True,
+        gridcolor=_GRID,
+        row=1,
+        col=1,
     )
     fig.update_yaxes(
         ticksuffix="%",
         title_text="Drawdown (%)",
-        title_font=dict(color=_TEXT, size=11),
+        title_font={"color": _TEXT, "size": 11},
         tickfont=_tick_font,
-        showgrid=True, gridcolor=_GRID,
-        row=1, col=2,
+        showgrid=True,
+        gridcolor=_GRID,
+        row=1,
+        col=2,
     )
     fig.update_yaxes(
         title_text="Sharpe Ratio",
-        title_font=dict(color=_TEXT, size=11),
+        title_font={"color": _TEXT, "size": 11},
         tickfont=_tick_font,
-        showgrid=True, gridcolor=_GRID,
-        row=1, col=3,
+        showgrid=True,
+        gridcolor=_GRID,
+        row=1,
+        col=3,
     )
     fig.update_xaxes(tickfont=_tick_font)
 
     fig.update_layout(
         paper_bgcolor=_PAPER,
         plot_bgcolor=_PLOT,
-        font=dict(color=_TEXT, family=_FONT, size=12),
-        title=dict(
-            text="Performance Comparison — S1 OOS vs S2 Full vs Buy & Hold",
-            font=dict(size=14, color=_TEXT, family=_FONT),
-            x=0.02,
-        ),
+        font={"color": _TEXT, "family": _FONT, "size": 12},
+        title={
+            "text": "Performance Comparison — S1 OOS vs S2 Full vs Buy & Hold",
+            "font": {"size": 14, "color": _TEXT, "family": _FONT},
+            "x": 0.02,
+        },
         height=380,
         showlegend=True,
-        legend=dict(
-            orientation="h", x=0, y=1.10,
-            bgcolor="rgba(0,0,0,0)", bordercolor="rgba(0,0,0,0)",
-            font=dict(size=11, family=_FONT, color=_TEXT),
-        ),
+        legend={
+            "orientation": "h",
+            "x": 0,
+            "y": 1.10,
+            "bgcolor": "rgba(0,0,0,0)",
+            "bordercolor": "rgba(0,0,0,0)",
+            "font": {"size": 11, "family": _FONT, "color": _TEXT},
+        },
         barmode="group",
-        margin=dict(l=70, r=24, t=80, b=44),
+        margin={"l": 70, "r": 24, "t": 80, "b": 44},
     )
     # Subplot title font — must match light theme
     for ann in fig.layout.annotations:
@@ -801,101 +1027,86 @@ def build_comparison_chart(results: dict) -> go.Figure:
 # Chart 7: Logarithmic Regression Price Bands
 # ══════════════════════════════════════════════════════════════════════════════
 
+
 def build_regression_bands_chart(df: pd.DataFrame) -> go.Figure:
     """
     Log-scale price chart with regression top/bottom model bands (Rainbow Chart bands).
     """
-    from core.trolololo import get_cycle_marks, ORIGIN_DATE, TOP_SLOPE, TOP_OFFSET, BOTTOM_SLOPE, BOTTOM_OFFSET, INTERCEPT, FIRST_HIGH_CORRECTION
-    from scipy import stats
-    
+    from core.trolololo import compute_trolololo_bands
+
     df_clean = df.dropna(subset=["btc_close"]).copy()
-    dates = df_clean.index
-    prices = df_clean["btc_close"].values.astype(float)
-    n = len(df_clean)
-    
-    d_raw = (dates - ORIGIN_DATE).days.values.astype(float)
-    valid = (d_raw > 0) & (prices > 0)
-    
-    price_log = np.full(n, np.nan)
-    price_log[valid] = np.log(prices[valid])
-    
-    LN10 = np.log(10.0)
-    top_base = np.full(n, np.nan)
-    bottom_base = np.full(n, np.nan)
-    top_base[valid] = LN10 * (TOP_SLOPE * np.log(d_raw[valid] + TOP_OFFSET) - INTERCEPT)
-    bottom_base[valid] = LN10 * (BOTTOM_SLOPE * np.log(d_raw[valid] + BOTTOM_OFFSET) - INTERCEPT)
-    
-    res_top = price_log - top_base
-    res_bottom = price_log - bottom_base
-    
-    high_marks, low_marks = get_cycle_marks(df_clean["btc_close"])
-    hi_idx = np.where(high_marks)[0]
-    lo_idx = np.where(low_marks)[0]
-    hi_idx = hi_idx[np.isfinite(res_top[hi_idx])]
-    lo_idx = lo_idx[np.isfinite(res_bottom[lo_idx])]
-    
-    all_pos = np.arange(n, dtype=float)
-    
-    if len(hi_idx) < 2 or len(lo_idx) < 2:
-        top_band = np.exp(top_base)
-        bottom_band = np.exp(bottom_base)
-    else:
-        hi_y = res_top[hi_idx].copy()
-        hi_y[0] *= FIRST_HIGH_CORRECTION
-        slope_top, intercept_top, _, _, _ = stats.linregress(hi_idx.astype(float), hi_y)
-        top_drift = slope_top * all_pos + intercept_top
-        
-        slope_bot, intercept_bot, _, _, _ = stats.linregress(lo_idx.astype(float), res_bottom[lo_idx])
-        bottom_drift = slope_bot * all_pos + intercept_bot
-        
-        top_band = np.exp(top_base + top_drift)
-        bottom_band = np.exp(bottom_base + bottom_drift)
-        
+    df_clean = df_clean[df_clean["btc_close"] > 0]
+
     fig = go.Figure()
-    
+    if df_clean.empty:
+        layout = _base_layout("", height=420, extra_margin_t=35)
+        layout["xaxis"] = _xaxis()
+        layout["yaxis"] = _yaxis_linear()
+        fig.update_layout(**layout)
+        return fig
+
+    dates = df_clean.index
+    prices = df_clean["btc_close"].astype(float)
+    top_band, bottom_band = compute_trolololo_bands(prices)
+
     # Bottom Band
-    fig.add_trace(go.Scatter(
-        x=dates, y=bottom_band,
-        name="Bottom Band",
-        line=dict(color="#16a34a", width=1.5, dash="dash"),
-        mode="lines",
-        hovertemplate="Bottom Band: <b>%{y:$,.0f}</b><extra></extra>",
-    ))
-    
+    fig.add_trace(
+        go.Scatter(
+            x=dates,
+            y=bottom_band.values,
+            name="Bottom Band",
+            line={"color": "#16a34a", "width": 1.5, "dash": "dash"},
+            mode="lines",
+            hovertemplate="Bottom Band: <b>%{y:$,.0f}</b><extra></extra>",
+        )
+    )
+
     # Top Band
-    fig.add_trace(go.Scatter(
-        x=dates, y=top_band,
-        name="Top Band",
-        line=dict(color="#dc2626", width=1.5, dash="dash"),
-        mode="lines",
-        hovertemplate="Top Band: <b>%{y:$,.0f}</b><extra></extra>",
-    ))
-    
+    fig.add_trace(
+        go.Scatter(
+            x=dates,
+            y=top_band.values,
+            name="Top Band",
+            line={"color": "#dc2626", "width": 1.5, "dash": "dash"},
+            mode="lines",
+            hovertemplate="Top Band: <b>%{y:$,.0f}</b><extra></extra>",
+        )
+    )
+
     # BTC Price
-    fig.add_trace(go.Scatter(
-        x=dates, y=prices,
-        name="BTC Price",
-        line=dict(color="#d97706", width=1.8),
-        mode="lines",
-        hovertemplate="BTC Price: <b>%{y:$,.0f}</b><extra></extra>",
-    ))
-    
+    fig.add_trace(
+        go.Scatter(
+            x=dates,
+            y=prices.values,
+            name="BTC Price",
+            line={"color": "#d97706", "width": 1.8},
+            mode="lines",
+            hovertemplate="BTC Price: <b>%{y:$,.0f}</b><extra></extra>",
+        )
+    )
+
     # Log Y axis
-    all_vals = pd.concat([pd.Series(prices), pd.Series(top_band), pd.Series(bottom_band)]).dropna()
+    all_vals = pd.concat([prices, top_band, bottom_band]).dropna()
     all_vals = all_vals[all_vals > 0]
-    vmin, vmax = float(all_vals.min()), float(all_vals.max())
-    tick_vals, tick_texts = _log_dollar_ticks(vmin, vmax)
-    
+    if all_vals.empty:
+        tick_vals, tick_texts = [1e2, 1e4, 1e6], ["$100", "$10K", "$1M"]
+    else:
+        vmin, vmax = float(all_vals.min()), float(all_vals.max())
+        tick_vals, tick_texts = _log_dollar_ticks(vmin, vmax)
+
     layout = _base_layout("", height=420, extra_margin_t=35)
     layout["xaxis"] = _xaxis()
-    layout["yaxis"] = dict(
-        type="log",
-        tickvals=tick_vals, ticktext=tick_texts,
-        showgrid=True, gridcolor=_GRID, gridwidth=1,
-        zeroline=False, showline=False,
-        tickfont=dict(family=_FONT, size=11, color=_TEXT),
-        title=None,
-    )
+    layout["yaxis"] = {
+        "type": "log",
+        "tickvals": tick_vals,
+        "ticktext": tick_texts,
+        "showgrid": True,
+        "gridcolor": _GRID,
+        "gridwidth": 1,
+        "zeroline": False,
+        "showline": False,
+        "tickfont": {"family": _FONT, "size": 11, "color": _TEXT},
+        "title": None,
+    }
     fig.update_layout(**layout)
     return fig
-

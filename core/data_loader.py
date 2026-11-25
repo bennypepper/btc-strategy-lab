@@ -18,6 +18,7 @@ import json
 import logging
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import streamlit as st
 import yfinance as yf
@@ -28,70 +29,101 @@ logger = logging.getLogger(__name__)
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 _ROOT = Path(__file__).resolve().parents[1]
-DATASET_PATH  = _ROOT / "data" / "master_dataset.parquet"
-RESULTS_PATH  = _ROOT / "data" / "optimal_params_summary.json"
+DATASET_PATH = _ROOT / "data" / "master_dataset.parquet"
+RESULTS_PATH = _ROOT / "data" / "optimal_params_summary.json"
 TRIAL_LOG_DIR = _ROOT / "data" / "trial_log"
 
 SCENARIO_1_LOG = TRIAL_LOG_DIR / "scenario_1_grid_search_in_sample.parquet"
 SCENARIO_2_LOG = TRIAL_LOG_DIR / "scenario_2_grid_search_full.parquet"
+
+ALLOWED_TRIAL_METRICS = {
+    "total_return",
+    "max_drawdown",
+    "sharpe_ratio",
+    "win_rate",
+    "trade_count",
+}
+
+
+@st.cache_data(show_spinner=False)
+def load_static_dataset() -> pd.DataFrame:
+    """Load the frozen static master dataset with a normalized DatetimeIndex."""
+    df_static = pd.read_parquet(DATASET_PATH)
+    if not isinstance(df_static.index, pd.DatetimeIndex):
+        df_static.index = pd.to_datetime(df_static.index)
+    if df_static.index.tz is not None:
+        df_static.index = df_static.index.tz_localize(None)
+    df_static = df_static.sort_index()
+    df_static.attrs["is_live"] = False
+    return df_static
 
 
 @st.cache_data(ttl=300, show_spinner=False)  # Cache for 5 minutes (for real-time updates)
 def load_smart_dataset() -> pd.DataFrame:
     """
     Hybrid Data Pipeline (Smart Appending):
-    1. Loads the massive static master_dataset.parquet (2012 to 2026-03-15).
+    1. Loads the static master_dataset.parquet (2012 to 2026-03-15).
     2. Checks the last date in the static dataset.
     3. Fetches ONLY the missing daily BTC-USD prices from Yahoo Finance up to today.
     4. Computes Trolololo for the entire combined price history instantly.
     5. Caches the result for 5 minutes.
-
-    This removes the need for users to choose between "Historical" and "Live" modes,
-    providing a seamless, always-up-to-date experience.
     """
-    # 1. Load static historical data
-    df_static = pd.read_parquet(DATASET_PATH)
-    if not isinstance(df_static.index, pd.DatetimeIndex):
-        df_static.index = pd.to_datetime(df_static.index)
-    
-    last_date = df_static.index.max()
+    df_static = load_static_dataset().copy()
+    df_static.attrs["is_live"] = False
 
-    # 2. Fetch the delta (missing days)
-    # Add a day to start_date to avoid fetching the overlapping day, though yfinance handles dates flexibly
-    start_fetch = (last_date + pd.Timedelta(days=1)).strftime('%Y-%m-%d')
-    
+    last_date = df_static.index.max()
+    start_fetch = (last_date + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+
     try:
-        raw_new = yf.download("BTC-USD", start=start_fetch, auto_adjust=True, progress=False, timeout=8.0)
-        
+        raw_new = yf.download(
+            "BTC-USD", start=start_fetch, auto_adjust=True, progress=False, timeout=8.0
+        )
+
         if not raw_new.empty:
             if isinstance(raw_new.columns, pd.MultiIndex):
                 raw_new.columns = raw_new.columns.get_level_values(0)
-            
-            raw_new.index = pd.to_datetime(raw_new.index).tz_localize(None)
+
+            raw_new.index = pd.to_datetime(raw_new.index)
+            if raw_new.index.tz is not None:
+                raw_new.index = raw_new.index.tz_localize(None)
             raw_new = raw_new.sort_index()
-            
+
             df_new = pd.DataFrame(index=raw_new.index)
-            df_new["btc_close"] = raw_new["Close"].squeeze()
-            df_new["btc_open"]  = raw_new["Open"].squeeze()
-            
-            # Combine static and new (only for overlapping columns needed for simulation)
-            # Other CBBI columns (pi_cycle, etc.) will naturally become NaN or we can ffill them.
-            # We don't trade on them, so it's fine.
+            df_new["btc_close"] = pd.to_numeric(raw_new["Close"].squeeze(), errors="coerce")
+            df_new["btc_open"] = pd.to_numeric(raw_new["Open"].squeeze(), errors="coerce")
+
             df_combined = pd.concat([df_static, df_new])
-            
-            # 3. Compute Trolololo across the whole timeline
-            # Trolololo is independent, so it computes instantly
-            df_combined["trolololo"] = compute_trolololo(df_combined["btc_close"].dropna())
-            
-            # Fill down other indicators purely for cosmetic charts if needed
-            df_combined = df_combined.ffill()
-            
+            df_combined = df_combined[~df_combined.index.duplicated(keep="last")].sort_index()
+
+            # Drop non-positive or non-finite prices rather than forward-filling gaps.
+            valid_prices = (
+                np.isfinite(df_combined["btc_close"])
+                & (df_combined["btc_close"] > 0)
+                & np.isfinite(df_combined["btc_open"])
+                & (df_combined["btc_open"] > 0)
+            )
+            df_combined = df_combined.loc[valid_prices].copy()
+
+            df_combined["trolololo"] = compute_trolololo(df_combined["btc_close"])
+
+            # Only forward-fill cosmetic CBBI columns; never ffill prices or trolololo.
+            cosmetic_cols = [
+                col
+                for col in df_combined.columns
+                if col not in ("btc_close", "btc_open", "trolololo")
+            ]
+            if cosmetic_cols:
+                df_combined[cosmetic_cols] = df_combined[cosmetic_cols].ffill()
+
+            df_combined.attrs["is_live"] = True
             return df_combined
-            
-    except Exception as e:
-        # Graceful fallback: If yfinance is down, timed out, or rate-limited, fall back to static dataset.
-        logger.warning("Failed to fetch live delta data from yfinance: %s. Falling back to static dataset.", e)
-    
+
+    except (OSError, ValueError, KeyError, TypeError, RuntimeError) as e:
+        logger.warning(
+            "Failed to fetch live delta data from yfinance: %s. Falling back to static dataset.",
+            e,
+        )
+
     return df_static
 
 
@@ -115,16 +147,44 @@ def load_research_results() -> dict:
         return json.load(f)
 
 
-@st.cache_data(show_spinner="Loading Scenario 1 trial log...")
-def load_scenario1_log() -> pd.DataFrame:
-    """Load Scenario 1 (IS) trial log. Cached after first access."""
-    return pd.read_parquet(SCENARIO_1_LOG)
+@st.cache_data(ttl=1800, max_entries=1, show_spinner="Loading Scenario 1 trial log...")
+def load_scenario1_log(columns: list[str] | None = None) -> pd.DataFrame:
+    """Load Scenario 1 (IS) trial log. Cached with bounded TTL."""
+    return pd.read_parquet(SCENARIO_1_LOG, columns=columns)
 
 
-@st.cache_data(show_spinner="Loading Scenario 2 trial log...")
-def load_scenario2_log() -> pd.DataFrame:
-    """Load Scenario 2 (Full) trial log. Cached after first access."""
-    return pd.read_parquet(SCENARIO_2_LOG)
+@st.cache_data(ttl=1800, max_entries=1, show_spinner="Loading Scenario 2 trial log...")
+def load_scenario2_log(columns: list[str] | None = None) -> pd.DataFrame:
+    """Load Scenario 2 (Full) trial log. Cached with bounded TTL."""
+    return pd.read_parquet(SCENARIO_2_LOG, columns=columns)
+
+
+def _scenario_log_path(scenario: int) -> Path:
+    if scenario == 1:
+        return SCENARIO_1_LOG
+    if scenario == 2:
+        return SCENARIO_2_LOG
+    raise ValueError(f"Unsupported scenario: {scenario}. Expected 1 or 2.")
+
+
+@st.cache_data(ttl=1800, max_entries=1, show_spinner="Building sensitivity heatmap...")
+def load_heatmap_pivot(scenario: int, metric: str = "total_return") -> pd.DataFrame:
+    """Load only threshold and metric columns and return the aggregated heatmap matrix."""
+    if metric not in ALLOWED_TRIAL_METRICS:
+        raise ValueError(f"Unsupported metric: {metric}")
+    path = _scenario_log_path(scenario)
+    df_cols = pd.read_parquet(path, columns=["threshold_buy", "threshold_sell", metric])
+    return build_heatmap_matrix(df_cols, metric=metric)
+
+
+@st.cache_data(ttl=1800, max_entries=1, show_spinner="Loading top 100 trials...")
+def load_top100_trials(scenario: int, metric: str = "total_return") -> pd.DataFrame:
+    """Load a scenario trial log and cache only the top 100 rows ranked by `metric`."""
+    if metric not in ALLOWED_TRIAL_METRICS:
+        raise ValueError(f"Unsupported metric: {metric}")
+    path = _scenario_log_path(scenario)
+    df_log = pd.read_parquet(path)
+    return df_log.nlargest(100, metric).reset_index(drop=True)
 
 
 def build_heatmap_matrix(
