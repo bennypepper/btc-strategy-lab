@@ -226,17 +226,151 @@ def _grid_search_kernel(
         results[idx, 7] = tc
 
 
+@numba.njit(cache=True, parallel=True)
+def _grid_search_best_kernel(
+    open_prices: np.ndarray,
+    close_prices: np.ndarray,
+    signal: np.ndarray,
+    buy_thresholds: np.ndarray,
+    sell_thresholds: np.ndarray,
+    alloc_buys: np.ndarray,
+    alloc_sells: np.ndarray,
+    initial_cash: float,
+    fee_rate: float,
+    best_per_buy: np.ndarray,  # shape: (n_buy, 3, 8) — [max_return, max_sharpe, min_drawdown]
+) -> None:
+    """
+    O(1)-RAM parallel streaming grid search.
+
+    Parallelizes across `i_buy` and records only the 3 objective winners per
+    `i_buy` (slot 0: max_return, slot 1: max_sharpe, slot 2: min_drawdown)
+    into `best_per_buy` (~8.6 KB for 45 buy thresholds instead of 82.8 MB).
+
+    Iterates `(i_sell, i_abuy, i_asell)` in strictly ascending order using
+    strict `>` / `<` comparisons so tie-breaking is bit-for-bit identical to
+    `np.argmax` / `np.argmin` on a flat `(i_buy, i_sell, i_abuy, i_asell)` grid.
+    """
+    if len(open_prices) < 2:
+        raise ValueError("Insufficient data points for backtesting (need at least 2).")
+
+    n_buy   = len(buy_thresholds)
+    n_sell  = len(sell_thresholds)
+    n_abuy  = len(alloc_buys)
+    n_asell = len(alloc_sells)
+
+    for i_buy in numba.prange(n_buy):
+        for s in range(3):
+            for c in range(8):
+                best_per_buy[i_buy, s, c] = np.nan
+
+        bt = buy_thresholds[i_buy]
+        has_valid = False
+        best_ret = -np.inf
+        best_sharpe = -np.inf
+        best_dd = np.inf
+
+        for i_sell in range(n_sell):
+            st = sell_thresholds[i_sell]
+            if bt >= st:
+                continue
+
+            for i_abuy in range(n_abuy):
+                ab = alloc_buys[i_abuy]
+                for i_asell in range(n_asell):
+                    as_ = alloc_sells[i_asell]
+                    ret, sharpe, dd, tc = _full_backtest_kernel(
+                        open_prices, close_prices, signal,
+                        bt, st, ab, as_, initial_cash, fee_rate,
+                    )
+                    if not has_valid:
+                        has_valid = True
+                        best_ret = ret
+                        best_sharpe = sharpe
+                        best_dd = dd
+                        for s in range(3):
+                            best_per_buy[i_buy, s, 0] = bt
+                            best_per_buy[i_buy, s, 1] = st
+                            best_per_buy[i_buy, s, 2] = ab
+                            best_per_buy[i_buy, s, 3] = as_
+                            best_per_buy[i_buy, s, 4] = ret
+                            best_per_buy[i_buy, s, 5] = sharpe
+                            best_per_buy[i_buy, s, 6] = dd
+                            best_per_buy[i_buy, s, 7] = tc
+                    else:
+                        if ret > best_ret:
+                            best_ret = ret
+                            best_per_buy[i_buy, 0, 0] = bt
+                            best_per_buy[i_buy, 0, 1] = st
+                            best_per_buy[i_buy, 0, 2] = ab
+                            best_per_buy[i_buy, 0, 3] = as_
+                            best_per_buy[i_buy, 0, 4] = ret
+                            best_per_buy[i_buy, 0, 5] = sharpe
+                            best_per_buy[i_buy, 0, 6] = dd
+                            best_per_buy[i_buy, 0, 7] = tc
+                        if sharpe > best_sharpe:
+                            best_sharpe = sharpe
+                            best_per_buy[i_buy, 1, 0] = bt
+                            best_per_buy[i_buy, 1, 1] = st
+                            best_per_buy[i_buy, 1, 2] = ab
+                            best_per_buy[i_buy, 1, 3] = as_
+                            best_per_buy[i_buy, 1, 4] = ret
+                            best_per_buy[i_buy, 1, 5] = sharpe
+                            best_per_buy[i_buy, 1, 6] = dd
+                            best_per_buy[i_buy, 1, 7] = tc
+                        if dd < best_dd:
+                            best_dd = dd
+                            best_per_buy[i_buy, 2, 0] = bt
+                            best_per_buy[i_buy, 2, 1] = st
+                            best_per_buy[i_buy, 2, 2] = ab
+                            best_per_buy[i_buy, 2, 3] = as_
+                            best_per_buy[i_buy, 2, 4] = ret
+                            best_per_buy[i_buy, 2, 5] = sharpe
+                            best_per_buy[i_buy, 2, 6] = dd
+                            best_per_buy[i_buy, 2, 7] = tc
+
+
+def _reduce_best_per_buy(
+    best_per_buy: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
+    """
+    Reduce per-buy streaming winners in ascending `i_buy` order with strict `>` / `<`.
+
+    Returns `(max_return_row, max_sharpe_row, min_drawdown_row)`, or `None` if no
+    valid combination exists.
+    """
+    best_ret_row: np.ndarray | None = None
+    best_sharpe_row: np.ndarray | None = None
+    best_dd_row: np.ndarray | None = None
+
+    for i_buy in range(best_per_buy.shape[0]):
+        ret_row = best_per_buy[i_buy, 0]
+        if np.isnan(ret_row[4]):
+            continue
+        sharpe_row = best_per_buy[i_buy, 1]
+        dd_row = best_per_buy[i_buy, 2]
+
+        if best_ret_row is None or ret_row[4] > best_ret_row[4]:
+            best_ret_row = ret_row
+        if best_sharpe_row is None or sharpe_row[5] > best_sharpe_row[5]:
+            best_sharpe_row = sharpe_row
+        if best_dd_row is None or dd_row[6] < best_dd_row[6]:
+            best_dd_row = dd_row
+
+    if best_ret_row is None or best_sharpe_row is None or best_dd_row is None:
+        return None
+    return best_ret_row.copy(), best_sharpe_row.copy(), best_dd_row.copy()
+
+
 def warmup_optimizer() -> None:
-    """Pre-JIT the optimizer kernel with tiny dummy data."""
+    """Pre-JIT the optimizer kernels with tiny dummy data."""
     warmup_numba()
     tiny = np.ones(20, dtype=np.float64) * 50000.0
     sig  = np.linspace(10, 90, 20)
     bts  = np.array([20.0, 30.0])
     sts  = np.array([60.0, 70.0])
     als  = np.array([0.10, 0.25])
-    n    = len(bts) * len(sts) * len(als) * len(als)
-    res  = np.zeros((n, 8), dtype=np.float64)
-    _grid_search_kernel(tiny, tiny, sig, bts, sts, als, als, 100_000.0, 0.001, res)
+    best_per_buy = np.full((len(bts), 3, 8), np.nan, dtype=np.float64)
+    _grid_search_best_kernel(tiny, tiny, sig, bts, sts, als, als, 100_000.0, 0.001, best_per_buy)
 
 
 def run_live_optimization(
@@ -353,33 +487,29 @@ def run_live_optimization(
         alloc_arr = np.array(ALLOC_STEPS,     dtype=np.float64)
 
         n_combos = len(buy_arr) * len(sell_arr) * len(alloc_arr) ** 2
-        results_arr = np.zeros((n_combos, 8), dtype=np.float64)
+        best_per_buy = np.full((len(buy_arr), 3, 8), np.nan, dtype=np.float64)
 
         if progress_cb:
             progress_cb(0.08, f"Running {n_combos:,} combinations (Numba parallel)…")
 
         t0 = time.perf_counter()
-        _grid_search_kernel(
+        _grid_search_best_kernel(
             open_prices, close_prices, signal,
             buy_arr, sell_arr, alloc_arr, alloc_arr,
-            float(initial_cash), float(fee_rate), results_arr,
+            float(initial_cash), float(fee_rate), best_per_buy,
         )
         elapsed = time.perf_counter() - t0
 
         if progress_cb:
             progress_cb(0.70, "Extracting best parameters…")
 
-        # Filter invalid (buy >= sell) rows without copying when all rows are valid
-        valid_mask = (results_arr[:, 0] < results_arr[:, 1]) & (results_arr[:, 4] > -999.0)
-        valid = results_arr if valid_mask.all() else results_arr[valid_mask]
+        reduced = _reduce_best_per_buy(best_per_buy)
+        del best_per_buy
 
-        if len(valid) == 0:
-            del valid, results_arr
+        if reduced is None:
             return OptimizationResult(status="error", error_message="No valid combinations found.")
 
-        def _best_row(arr: np.ndarray, col: int, maximize: bool) -> dict:
-            idx = np.argmax(arr[:, col]) if maximize else np.argmin(arr[:, col])
-            r = arr[idx]
+        def _format_row(r: np.ndarray) -> dict:
             return {
                 "threshold_buy":       int(r[0]),
                 "threshold_sell":      int(r[1]),
@@ -391,10 +521,10 @@ def run_live_optimization(
                 "trade_count":         int(r[7]),
             }
 
-        best_return   = _best_row(valid, 4, True)
-        best_sharpe   = _best_row(valid, 5, True)
-        best_drawdown = _best_row(valid, 6, False)  # minimize positive drawdown (maximize=False)
-        del valid, results_arr
+        best_ret_row, best_sharpe_row, best_dd_row = reduced
+        best_return   = _format_row(best_ret_row)
+        best_sharpe   = _format_row(best_sharpe_row)
+        best_drawdown = _format_row(best_dd_row)
 
         # Buy & Hold benchmark on IS period (including entry fee, matching core/engine.py)
         bh_start = float(open_prices[0])

@@ -35,8 +35,13 @@ Formula (natural log space):
 
 Cycle marks strategy
 --------------------
-- Pre-2026: Hardcoded confirmed historical BTC cycle peaks and troughs (ground truth).
-- Post-2026: Detected algorithmically using local extrema over a rolling window.
+- Default (`include_algo_marks=False`): Uses ONLY the confirmed historical BTC
+  cycle peaks (`CONFIRMED_HIGHS`, 2013-2021) and troughs (`CONFIRMED_LOWS`,
+  2012-2022). Because the calibration anchor points are fixed, appending new
+  live post-2022/2026 price data produces zero retroactive shift to historical
+  values (eliminating both lookahead and edge-extrema Index Revision Bias).
+- Opt-in diagnostic mode (`include_algo_marks=True`): Additionally detects
+  post-2026 local extrema via `scipy.signal.argrelextrema`.
 
 Why independent calculation?
 -----------------------------
@@ -113,22 +118,26 @@ def _nearest_index(dates: pd.DatetimeIndex, date_str: str) -> int:
 def get_cycle_marks(
     btc_close: pd.Series,
     algo_window: int = ALGO_EXTREMA_WINDOW,
+    include_algo_marks: bool = False,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Build boolean arrays marking BTC cycle peaks (high_marks) and troughs (low_marks).
 
     Strategy
     --------
-    For dates within MARKS_CUTOFF_DATE (before 2026):
-        Use CONFIRMED_HIGHS / CONFIRMED_LOWS — hardcoded ground truth.
-    For dates beyond MARKS_CUTOFF_DATE:
-        Detect algorithmically using argrelextrema on ln(price) with the
-        given window (default: must be local max/min within ±365 days).
+    By default (`include_algo_marks=False`), uses ONLY `CONFIRMED_HIGHS` (2013-2021)
+    and `CONFIRMED_LOWS` (2012-2022) so the fitted channel is 100% deterministic and
+    immutable when new live post-2022/2026 prices are appended.
+
+    When `include_algo_marks=True` (opt-in diagnostic mode only), also detects
+    local extrema beyond `MARKS_CUTOFF_DATE` via `argrelextrema` on `ln(price)`
+    with the given `algo_window`.
 
     Parameters
     ----------
-    btc_close   : BTC daily closing prices with DatetimeIndex.
-    algo_window : Order parameter for scipy.signal.argrelextrema (days each side).
+    btc_close          : BTC daily closing prices with DatetimeIndex.
+    algo_window        : Order parameter for scipy.signal.argrelextrema (days each side).
+    include_algo_marks : If True, append algorithmic extrema after MARKS_CUTOFF_DATE.
 
     Returns
     -------
@@ -150,8 +159,9 @@ def get_cycle_marks(
         if ts >= dates[0] and ts <= dates[-1]:
             low_marks[_nearest_index(dates, d)] = True
 
-    # 2. Algorithmic detection beyond cutoff
-    if dates.max() > MARKS_CUTOFF_DATE:
+    # 2. Optional algorithmic detection beyond cutoff (disabled by default to prevent
+    #    post-cutoff lookahead and edge-extrema Index Revision Bias)
+    if include_algo_marks and dates.max() > MARKS_CUTOFF_DATE:
         cutoff_pos = int(dates.searchsorted(MARKS_CUTOFF_DATE))
         prices = btc_close.values.astype(float)
         log_prices = np.full(n, np.nan, dtype=float)
@@ -180,6 +190,7 @@ def get_cycle_marks(
 def _compute_channel_log(
     btc_close: pd.Series,
     algo_window: int = ALGO_EXTREMA_WINDOW,
+    include_algo_marks: bool = False,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Compute natural-log price and adaptive (channel_top, channel_bottom) arrays.
@@ -217,7 +228,11 @@ def _compute_channel_log(
     res_top = price_log - top_base
     res_bottom = price_log - bottom_base
 
-    high_marks, low_marks = get_cycle_marks(btc_close, algo_window=algo_window)
+    high_marks, low_marks = get_cycle_marks(
+        btc_close,
+        algo_window=algo_window,
+        include_algo_marks=include_algo_marks,
+    )
     hi_idx = np.where(high_marks)[0]
     lo_idx = np.where(low_marks)[0]
     hi_idx = hi_idx[np.isfinite(res_top[hi_idx])]
@@ -247,6 +262,7 @@ def _compute_channel_log(
 def compute_trolololo(
     btc_close: pd.Series,
     algo_window: int = ALGO_EXTREMA_WINDOW,
+    include_algo_marks: bool = False,
 ) -> pd.Series:
     """
     Compute the Trolololo indicator from BTC daily closing prices.
@@ -259,11 +275,14 @@ def compute_trolololo(
 
     Parameters
     ----------
-    btc_close  : pd.Series
+    btc_close          : pd.Series
         Daily BTC-USD closing prices with a DatetimeIndex.
         Should span from at least 2012-01-01 for stable channel regression.
-    algo_window : int
-        Days window for algorithmic extrema detection beyond 2026-01-01.
+    algo_window        : int
+        Days window for opt-in algorithmic extrema detection beyond 2026-01-01.
+    include_algo_marks : bool
+        When False (default), uses only confirmed historical cycle marks so
+        historical values are immutable when new live data is appended.
 
     Returns
     -------
@@ -272,7 +291,9 @@ def compute_trolololo(
         NaN for rows where price is zero/negative or d <= 0.
     """
     price_log, channel_top, channel_bottom, valid = _compute_channel_log(
-        btc_close, algo_window=algo_window
+        btc_close,
+        algo_window=algo_window,
+        include_algo_marks=include_algo_marks,
     )
     channel_range = channel_top - channel_bottom
 
@@ -291,21 +312,25 @@ def compute_trolololo(
 def compute_trolololo_bands(
     btc_close: pd.Series,
     algo_window: int = ALGO_EXTREMA_WINDOW,
+    include_algo_marks: bool = False,
 ) -> tuple[pd.Series, pd.Series]:
     """
     Compute the adaptive Trolololo upper and lower channel bands in USD price space.
 
     Parameters
     ----------
-    btc_close   : Daily BTC-USD closing prices with a DatetimeIndex.
-    algo_window : Days window for algorithmic extrema detection beyond 2026-01-01.
+    btc_close          : Daily BTC-USD closing prices with a DatetimeIndex.
+    algo_window        : Days window for opt-in algorithmic extrema detection beyond 2026-01-01.
+    include_algo_marks : When False (default), uses only confirmed historical cycle marks.
 
     Returns
     -------
     (top_band, bottom_band) : tuple of pd.Series in USD price space with btc_close.index.
     """
     _price_log, channel_top, channel_bottom, valid = _compute_channel_log(
-        btc_close, algo_window=algo_window
+        btc_close,
+        algo_window=algo_window,
+        include_algo_marks=include_algo_marks,
     )
     top_usd = np.full(len(btc_close), np.nan, dtype=float)
     bottom_usd = np.full(len(btc_close), np.nan, dtype=float)
@@ -319,14 +344,20 @@ def compute_trolololo_bands(
 
 # ── Diagnostics ───────────────────────────────────────────────────────────────
 
-def get_channel_params(btc_close: pd.Series) -> dict:
+def get_channel_params(
+    btc_close: pd.Series,
+    include_algo_marks: bool = False,
+) -> dict:
     """
     Return the fitted channel regression parameters for inspection.
 
     Useful for verifying the drift regressions are stable and the
     adaptive channel correctly brackets historical cycle extremes.
     """
-    high_marks, low_marks = get_cycle_marks(btc_close)
+    high_marks, low_marks = get_cycle_marks(
+        btc_close,
+        include_algo_marks=include_algo_marks,
+    )
     n      = len(btc_close)
     dates  = btc_close.index
     prices = btc_close.values.astype(float)
