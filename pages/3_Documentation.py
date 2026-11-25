@@ -5,6 +5,7 @@ Methodology, glossary, and full disclaimer.
 """
 
 import streamlit as st
+
 from core.styles import inject_css
 
 st.set_page_config(page_title="Documentation · BTC Strategy Lab", page_icon="📖", layout="wide")
@@ -27,7 +28,7 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "About the Author",
 ])
 
-# ── Tab 1: On-Chain Indicators ─────────────────────────────────────────────────────
+# ── Tab 1: On-Chain Indicators ────────────────────────────────────────────────
 with tab1:
     st.markdown("""
 ### On-Chain Indicators
@@ -35,9 +36,9 @@ with tab1:
 The **Crypto Bitcoin Bull/Bear Index (CBBI)** is a composite on-chain data indicator that attempts
 to identify where Bitcoin is within its market cycle.
 
-Rather than relying on price alone, CBBI aggregates 9 independent on-chain metrics that
-historically correlate with Bitcoin's cyclical peaks and troughs. Each metric is normalized
-to a scale of **0 to 100**, and CBBI blends them into a single Confidence Score.
+Rather than relying on price alone, CBBI combines 9 sub-indicators (including Logarithmic Regression
+and 8 other cycle metrics) into a single **CBBI Confidence Score** (`cbbi_confidence`) — totaling
+10 indicators analyzed in the underlying research. Each metric is normalized to a scale of **0 to 100**.
 
 > **0 = Deep bear market / accumulation zone**  
 > **100 = Peak euphoria / distribution zone**
@@ -46,11 +47,12 @@ Data source: [cbbi.info](https://cbbi.info) · Dataset: 2012-01-01 to 2026-03-15
 
 ---
 
-### The 10 On-Chain Indicators Analyzed
+### The 10 On-Chain Indicators Analyzed (9 CBBI Metrics + Composite Score)
 
 | Indicator | Internal Name | Description |
 |---|---|---|
 | **Logarithmic Regression** ⭐ | `trolololo` | Dynamic Channel Normalization Band, which is the primary signal used in this app |
+| **CBBI Confidence Score** | `cbbi_confidence` | Composite CBBI blend across the 9 underlying cycle metrics |
 | Pi Cycle Top | `pi_cycle` | Identifies cycle tops using moving average crossovers |
 | RUPL | `rupl` | Relative Unrealized Profit / Loss across all wallets |
 | RHODL Ratio | `rhodl_ratio` | Compares realized value of coins from different age bands |
@@ -86,9 +88,9 @@ The strategy is a **threshold-based, fractional allocation** system. It does not
 
 | Condition | Action | Amount |
 |---|---|---|
-| Index < Buy Threshold | **BUY** | `alloc_buy_pct × current_cash` |
-| Index > Sell Threshold | **SELL** | `alloc_sell_pct × current_btc_holdings` |
-| Buy Threshold ≤ Index ≤ Sell Threshold | **HOLD** | No trade |
+| Index ≤ Buy Threshold | **BUY** | `alloc_buy_pct × current_cash` |
+| Index ≥ Sell Threshold | **SELL** | `alloc_sell_pct × current_btc_holdings` |
+| Buy Threshold < Index < Sell Threshold | **HOLD** | No trade |
 
 #### Execution (Anti-Lookahead Bias)
 
@@ -189,11 +191,11 @@ with tab4:
 This application presents results from a 4-phase academic research project.
 
 #### Phase 1: Data Pipeline
-- **Source 1:** CBBI official dataset (XLSX from cbbi.info) containing 8 on-chain indicators and composite score
+- **Source 1:** CBBI official dataset (XLSX from cbbi.info) containing 8 on-chain sub-indicators and composite score (`cbbi_confidence`)
 - **Source 2:** BTC-USD daily prices from yfinance (`BTC-USD`) used for `btc_open` (T+1 execution) and `btc_close`
 - **Logarithmic Regression *(Updated 2026-04-28)*:** `trolololo` is **not** sourced from the CBBI XLSX. It is computed independently from `btc_close` using the **Dynamic Channel Normalization** formula (`core/trolololo.py`). This uses two power-law base channels and adaptive linear drift regression at cycle peaks/troughs. This eliminates *Index Revision Bias*, preventing retroactive CBBI formula updates from silently shifting historical signal values.
 - Preprocessing: string parsing → float64, forward fill ≤ 7 days, date alignment
-- Static dataset snapshot: 2012-01-01 to 2026-03-15 (5,161 trading days)
+- Static dataset snapshot: 2012-01-01 to 2026-03-15 (5,188 trading days)
 - Validation: `validate_no_lookahead()` confirmed no backward fill was applied
 
 #### Phase 2: Indicator Selection
@@ -206,7 +208,7 @@ This application presents results from a 4-phase academic research project.
 #### Phase 3: Optimization Engine
 - Algorithm: **Grid Search** (exhaustive, deterministic)
 - Parameter space: `45 × 46 × 25 × 25 = 1,293,750` combinations per run
-- Parallelization: `joblib.Parallel` + Numba JIT (`@njit`) for inner loop
+- Parallelization: `numba.prange` + Numba JIT (`@njit(parallel=True)`) for grid search execution
 - 6 runs total: 2 scenarios × 3 objectives (Max Return, Min Drawdown, Max Sharpe)
 
 #### Two Scenarios Explained
@@ -272,7 +274,7 @@ period. The Logarithmic Regression indicator spent extended periods in the "hold
 fewer trades than during In-Sample. This is a feature of the market cycle, not a system failure.
 
 **3. Data Recency**  
-The static historical dataset snapshot is frozen at **2026-03-15**. The **Live Data mode** (sidebar toggle in the Simulator) fetches current BTC prices from Yahoo Finance and computes Logarithmic Regression independently in real time, allowing simulation up to the present date. However, the CBBI sub-indicator columns (pi_cycle, rupl, etc.) in the live dataset reflect the static snapshot values only — these are not updated from the CBBI API.
+The static historical dataset snapshot is frozen at **2026-03-15**. The **hybrid live data pipeline** automatically fetches recent BTC prices from Yahoo Finance and computes Logarithmic Regression independently in real time, allowing simulation up to the present date (falling back gracefully to the static snapshot if offline). However, the CBBI sub-indicator columns (pi_cycle, rupl, etc.) in the live dataset reflect the static snapshot values only — these are not updated from the CBBI API.
 
 **4. Execution Assumptions**  
 The backtest assumes:
@@ -295,8 +297,8 @@ The CBBI Confidence Score and its sub-indicators are periodically revised retroa
 
 | Source | Data | Coverage |
 |---|---|---|
-| [CBBI Official (cbbi.info)](https://cbbi.info) | 8 on-chain indicators + Confidence Score (from XLSX) | 2011-06-27 – 2026-03-15 |
-| Yahoo Finance (via yfinance) | BTC-USD daily Close & Open prices + independent Logarithmic Regression computation | 2012-01-01 – 2026-03-15 (static snapshot); live mode extends to present |
+| [CBBI Official (cbbi.info)](https://cbbi.info) | 8 on-chain sub-indicators + Confidence Score (from XLSX) | 2011-06-27 – 2026-03-15 |
+| Yahoo Finance (via yfinance) | BTC-USD daily Close & Open prices + independent Logarithmic Regression computation | 2012-01-01 – 2026-03-15 (static snapshot); hybrid live pipeline extends to present |
 
 > **Note on Logarithmic Regression:** The Logarithmic Regression (Dynamic Channel Normalization) indicator is **computed independently** from BTC-USD close prices — it is not read from the CBBI XLSX. This eliminates *Index Revision Bias* caused by retroactive formula updates on cbbi.info.
 
