@@ -6,17 +6,20 @@ BTC Strategy Lab — Streamlit entry point and home page.
 Responsibilities:
   1. Page config + global CSS (via core.styles)
   2. SVG favicon injection
-  3. Numba JIT warmup on startup
+  3. Data preload on startup
   4. Home page content (hero, nav cards with SVG icons, about, metrics, disclaimer)
 """
 
+import logging
+
 import streamlit as st
 
-from core.data_loader import load_smart_dataset, load_research_results
-from core.engine import warmup_numba
-from core.styles import inject_css, ICON_ZAP, ICON_CHART_BARS, ICON_BOOK
-from core.utils import format_currency
+from core.data_loader import load_research_results, load_smart_dataset
 from core.keepalive import inject_keepalive
+from core.styles import ICON_BOOK, ICON_CHART_BARS, ICON_ZAP, inject_css
+from core.utils import format_currency
+
+logger = logging.getLogger(__name__)
 
 # ── Page configuration ────────────────────────────────────────────────────────
 st.set_page_config(
@@ -29,7 +32,7 @@ st.set_page_config(
     },
 )
 
-# ── fix #18: SVG favicon (teal ₿, avoids cross-platform emoji inconsistency) ──
+# ── SVG favicon (teal ₿, avoids cross-platform emoji inconsistency) ───────────
 st.markdown(
     "<link rel='shortcut icon' href=\"data:image/svg+xml,"
     "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>"
@@ -42,12 +45,6 @@ st.markdown(
 inject_css()
 inject_keepalive()
 
-# ── Numba warmup + data preload (cached for session) ─────────────────────────
-@st.cache_resource
-def _warmup():
-    warmup_numba()
-    return True
-
 
 @st.cache_resource
 def _preload_data():
@@ -57,12 +54,9 @@ def _preload_data():
 
 
 with st.spinner("Initializing…"):
-    _warmup()
     _preload_data()
 
 # ── Home page: Header ─────────────────────────────────────────────────────────
-# fix #10: subtitle uses explicit color + weight (not just opacity)
-# fix #13: hero tagline gives first-visit context before the cards
 st.markdown(
     """
     <div style="margin-bottom:0.15rem;">
@@ -83,10 +77,10 @@ st.markdown(
 df_live = load_smart_dataset()
 latest_date = df_live.index.max()
 latest_row = df_live.loc[latest_date]
-is_live = True
+is_live = bool(df_live.attrs.get("is_live", False))
 
-latest_cbbi = float(latest_row['trolololo'])
-latest_price = float(latest_row['btc_close'])
+latest_cbbi = float(latest_row["trolololo"])
+latest_price = float(latest_row["btc_close"])
 total_days = len(df_live)
 min_date = str(df_live.index.min().date())
 
@@ -94,13 +88,13 @@ min_date = str(df_live.index.min().date())
 zone_label = "EXTREME OVERVALUED"
 zone_color = "#d93025"  # Red
 if latest_cbbi < 15:
-    zone_label, zone_color = "EXTREME UNDERVALUED", "#1a73e8" # Blue
+    zone_label, zone_color = "EXTREME UNDERVALUED", "#1a73e8"  # Blue
 elif latest_cbbi < 35:
-    zone_label, zone_color = "UNDERVALUED", "#188038" # Green
+    zone_label, zone_color = "UNDERVALUED", "#188038"  # Green
 elif latest_cbbi < 65:
-    zone_label, zone_color = "NEUTRAL", "#e37400" # Yellow/Orange
+    zone_label, zone_color = "NEUTRAL", "#e37400"  # Yellow/Orange
 elif latest_cbbi < 85:
-    zone_label, zone_color = "OVERVALUED", "#d93025" # Orange (red-orange)
+    zone_label, zone_color = "OVERVALUED", "#d93025"  # Orange (red-orange)
 
 st.markdown(
     f"""
@@ -138,9 +132,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ── fix #1 #4 #5 #14: Nav cards with SVG icons + CTA inside the card ─────────
-# Cards use pure-HTML <a> for self-contained, equal-height layout.
-# CTA (.nav-card-cta) is pinned to the bottom via flex layout.
+# ── Nav cards with SVG icons + CTA inside the card ────────────────────────────
 col1, col2, col3 = st.columns(3, gap="medium")
 
 with col1:
@@ -194,35 +186,37 @@ with col3:
 # ── Logarithmic Regression Price Bands Chart (Homepage) ───────────────────────
 try:
     from core.charts import build_regression_bands_chart
-    st.markdown("<h3 style='margin-top: 2.5rem; margin-bottom: 0.1rem; font-family: \"Space Grotesk\", sans-serif; font-weight: 700; color: #213448;'>Logarithmic Regression Bands</h3>", unsafe_allow_html=True)
+
+    st.markdown(
+        "<h3 style='margin-top: 2.5rem; margin-bottom: 0.1rem; font-family: \"Space Grotesk\", sans-serif; font-weight: 700; color: #213448;'>Logarithmic Regression Bands</h3>",
+        unsafe_allow_html=True,
+    )
     st.markdown(
         "<p style='color:#547792; font-size:0.9rem; margin-top:0rem; margin-bottom:0rem; font-family:\"Work Sans\", sans-serif;'>"
         "Historical Bitcoin price plotted on a log scale with fitted logarithmic regression model bands (Top and Bottom)."
         "</p>",
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
     fig_home = build_regression_bands_chart(df_live)
-    st.plotly_chart(fig_home, use_container_width=True)
-except Exception as e:
-    st.error(f"Error loading homepage chart: {e}")
+    st.plotly_chart(fig_home, width="stretch")
+except (ValueError, KeyError, RuntimeError, OSError):
+    logger.exception("Unable to render regression bands chart on homepage")
+    st.error("Unable to render regression bands chart right now.")
 
-# fix #12: divider now has margin: 2.5rem via global CSS
 st.divider()
 
 # ── About section ─────────────────────────────────────────────────────────────
-# fix #7: balanced 1:1 columns (was 3:2, causing density mismatch)
 col_a, col_b = st.columns([1, 1], gap="large")
 
 with col_a:
     st.markdown("### About This Research")
-    # fix #9: max-width: 65ch on paragraph text to control line length
     st.markdown(
         """
         <p style="max-width:65ch;line-height:1.68;color:#2d3f50;font-size:0.95rem;margin-bottom:0.85rem;">
           This app is the interactive deliverable of an academic research project that asks:
           <strong>which Bitcoin on-chain indicator makes the best trading signal, and what are its optimal parameters?</strong>
-          Ten popular indicators (Pi Cycle Top, MVRV Z-Score, Puell Multiple, RUPL, and others from the
-          <strong>CBBI dataset</strong>) were analyzed using Spearman correlation across 5 lag windows.
+          Ten indicators (9 CBBI sub-indicators including Pi Cycle Top, MVRV Z-Score, Puell Multiple, RUPL,
+          Logarithmic Regression, plus the CBBI Confidence Score) were analyzed using Spearman correlation across 5 lag windows.
         </p>
         <p style="max-width:65ch;line-height:1.68;color:#2d3f50;font-size:0.95rem;">
           The winner: <strong>Logarithmic Regression</strong> (Rainbow Chart),
@@ -238,9 +232,9 @@ with col_a:
     st.markdown(
         """
         <ol style="max-width:65ch;line-height:1.75;color:#2d3f50;font-size:0.95rem;padding-left:1.3rem;">
-          <li><strong>Set a Buy Threshold</strong>: when Logarithmic Regression drops below this,
+          <li><strong>Set a Buy Threshold</strong>: when Logarithmic Regression is at or below this,
               the strategy buys a fixed&nbsp;% of your cash</li>
-          <li><strong>Set a Sell Threshold</strong>: when Logarithmic Regression rises above this,
+          <li><strong>Set a Sell Threshold</strong>: when Logarithmic Regression is at or above this,
               the strategy sells a fixed&nbsp;% of your BTC</li>
           <li><strong>Between thresholds</strong>: the strategy holds (no action)</li>
           <li>Execution happens at the <strong>next day&rsquo;s open price</strong> (T+1)
@@ -253,13 +247,10 @@ with col_a:
 with col_b:
     st.markdown("### Dataset Information")
 
-    # fix #15: spinner communicates data-load latency on first visit
-    # fix #15: spinner communicates data-load latency
     min_d = str(df_live.index.min().date())
     max_d = str(df_live.index.max().date())
     n_rows = len(df_live)
 
-    # fix #2 & #6: clamp font-size + word-break in global CSS prevents truncation
     st.metric("Data Coverage", f"{min_d} → {max_d}")
     st.metric("Total Trading Days", f"{n_rows:,}")
     st.metric("Signal Indicator", "Logarithmic Regression Index")
@@ -306,7 +297,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# ── fix #17: Footer opacity increased from 0.3 → 0.55 ───────────────────────
+# ── Footer ────────────────────────────────────────────────────────────────────
 st.markdown(
     """
     <div style="text-align:center;margin-top:2.5rem;opacity:0.55;font-size:0.78rem;

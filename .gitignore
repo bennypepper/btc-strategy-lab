@@ -11,9 +11,16 @@ venv/
 .venv/
 env/
 .env
+.env.*
 
-# Testing
+# Secrets & logs
+*.log
+*.pem
+*.key
+
+# Testing & linting
 .pytest_cache/
+.ruff_cache/
 
 # Streamlit
 .streamlit/secrets.toml

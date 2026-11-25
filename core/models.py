@@ -7,8 +7,9 @@ Adheres to The Pragmatic Systems Handbook (Sections 1.2, 2.5).
 
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict, field
+from dataclasses import asdict, dataclass
 from typing import Any
+
 import pandas as pd
 
 

@@ -1,5 +1,7 @@
 import pytest
-from core.models import BacktestParameters, StrategyMetrics, BenchmarkMetrics
+
+from core.models import BacktestParameters, StrategyMetrics
+
 
 def test_backtest_parameters_valid():
     params = BacktestParameters(
@@ -16,6 +18,7 @@ def test_backtest_parameters_valid():
     assert params.get("fee_rate") == 0.001
     assert params.to_dict()["initial_cash"] == 50000.0
 
+
 def test_backtest_parameters_invalid_thresholds():
     with pytest.raises(ValueError, match="strictly less than"):
         BacktestParameters(
@@ -25,6 +28,7 @@ def test_backtest_parameters_invalid_thresholds():
             alloc_sell_pct=0.1,
         )
 
+
 def test_backtest_parameters_invalid_allocation():
     with pytest.raises(ValueError, match="alloc_buy_pct"):
         BacktestParameters(
@@ -33,6 +37,7 @@ def test_backtest_parameters_invalid_allocation():
             alloc_buy_pct=0.0,
             alloc_sell_pct=0.1,
         )
+
 
 def test_strategy_metrics_dict_access():
     metrics = StrategyMetrics(

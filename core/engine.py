@@ -21,13 +21,13 @@ from numba import njit
 
 from core.models import (
     BacktestParameters,
-    StrategyMetrics,
     BenchmarkMetrics,
     SimulationResult,
+    StrategyMetrics,
 )
 
-
 # ── Numba JIT engine ─────────────────────────────────────────────────────────
+
 
 @njit
 def run_backtest_numba(
@@ -61,6 +61,28 @@ def run_backtest_numba(
     tuple: (total_return, max_drawdown, sharpe_ratio, wins, sell_count, trade_count)
     """
     n_days = len(signals)
+    if n_days < 2:
+        raise ValueError("Insufficient data points for backtesting (need at least 2).")
+    if len(prices_open) != n_days or len(prices_close) != n_days:
+        raise ValueError("signals, prices_open, and prices_close must have equal length.")
+    if threshold_buy >= threshold_sell:
+        raise ValueError("threshold_buy must be strictly less than threshold_sell.")
+    if not np.isfinite(alloc_buy_pct) or not (0.0 < alloc_buy_pct <= 1.0):
+        raise ValueError("alloc_buy_pct must be finite and in (0.0, 1.0].")
+    if not np.isfinite(alloc_sell_pct) or not (0.0 < alloc_sell_pct <= 1.0):
+        raise ValueError("alloc_sell_pct must be finite and in (0.0, 1.0].")
+    if not np.isfinite(initial_cash) or initial_cash <= 0.0:
+        raise ValueError("initial_cash must be finite and strictly positive.")
+    if not np.isfinite(fee_rate) or not (0.0 <= fee_rate <= 0.10):
+        raise ValueError("fee_rate must be finite and in [0.0, 0.10].")
+
+    for i in range(n_days):
+        if not np.isfinite(prices_open[i]) or prices_open[i] <= 0.0:
+            raise ValueError("prices_open must contain only finite, strictly positive values.")
+        if not np.isfinite(prices_close[i]) or prices_close[i] <= 0.0:
+            raise ValueError("prices_close must contain only finite, strictly positive values.")
+        if not np.isfinite(signals[i]):
+            raise ValueError("signals must contain only finite values.")
 
     cash = initial_cash
     btc = 0.0
@@ -125,11 +147,9 @@ def run_backtest_numba(
     max_drawdown = 0.0
     peak = portfolio_value[0]
     for i in range(n_days):
-        if portfolio_value[i] > peak:
-            peak = portfolio_value[i]
+        peak = max(peak, portfolio_value[i])
         dd = (peak - portfolio_value[i]) / peak if peak > 0 else 0.0
-        if dd > max_drawdown:
-            max_drawdown = dd
+        max_drawdown = max(max_drawdown, dd)
 
     # Evaluate returns across actual inter-day steps (exclude day 0 uncomputed slot)
     returns_slice = daily_returns[1:] if n_days > 1 else daily_returns
@@ -163,8 +183,7 @@ def _compute_strategy_metrics(
     max_drawdown_idx = 0
     peak = pv[0]
     for i in range(len(pv)):
-        if pv[i] > peak:
-            peak = pv[i]
+        peak = max(peak, pv[i])
         dd = (peak - pv[i]) / peak if peak > 0 else 0.0
         if dd > max_drawdown:
             max_drawdown = dd
@@ -215,11 +234,9 @@ def _compute_benchmark_metrics(
     bh_mdd = 0.0
     bh_peak = prices_close[0]
     for p in prices_close:
-        if p > bh_peak:
-            bh_peak = p
+        bh_peak = max(bh_peak, p)
         bh_dd = (bh_peak - p) / bh_peak if bh_peak > 0 else 0.0
-        if bh_dd > bh_mdd:
-            bh_mdd = bh_dd
+        bh_mdd = max(bh_mdd, bh_dd)
 
     bh_mean = float(np.mean(bh_daily_ret))
     bh_std = float(np.std(bh_daily_ret))
@@ -258,6 +275,8 @@ def run_backtest_full(
         fee_rate=float(fee_rate),
         signal_column=signal_column,
     )
+    if not np.isfinite(params.initial_cash):
+        raise ValueError(f"initial_cash ({params.initial_cash}) must be finite and positive")
 
     clean_df = df.dropna(subset=[params.signal_column, "btc_open", "btc_close"]).copy()
     n = len(clean_df)
@@ -268,6 +287,13 @@ def run_backtest_full(
     prices_open = clean_df["btc_open"].values.astype(np.float64)
     prices_close = clean_df["btc_close"].values.astype(np.float64)
     dates = clean_df.index
+
+    if not (np.isfinite(prices_open).all() and (prices_open > 0.0).all()):
+        raise ValueError("btc_open must contain only finite, strictly positive values.")
+    if not (np.isfinite(prices_close).all() and (prices_close > 0.0).all()):
+        raise ValueError("btc_close must contain only finite, strictly positive values.")
+    if not np.isfinite(signals).all():
+        raise ValueError(f"{params.signal_column} must contain only finite values.")
 
     cash = params.initial_cash
     btc = 0.0

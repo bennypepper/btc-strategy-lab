@@ -1,13 +1,26 @@
 import numpy as np
 import pandas as pd
-import pytest
 
-from core.trolololo import compute_trolololo, get_cycle_marks, get_channel_params
+from core.trolololo import (
+    compute_trolololo,
+    compute_trolololo_bands,
+    get_channel_params,
+    get_cycle_marks,
+)
+
+
+def _make_btc_series(start: str, end: str) -> pd.Series:
+    """Create a deterministic synthetic BTC price series spanning multiple cycles."""
+    dates = pd.date_range(start, end, freq="D")
+    days = (dates - pd.Timestamp("2012-01-01")).days.values.astype(float)
+    base = np.exp(np.log(10.0) * (2.84 * np.log(days + 1300.0) - 19.463))
+    cycle = np.exp(0.6 * np.sin(2.0 * np.pi * days / 1460.0))
+    return pd.Series(base * cycle, index=dates, name="btc_close")
+
 
 def test_trolololo_computation_properties():
     """Verify that Trolololo outputs a Series bounded within [0, 100] with matching DatetimeIndex."""
     dates = pd.date_range("2015-01-01", periods=1000, freq="D")
-    # Synthetic exponential price series simulating Bitcoin growth
     days = np.arange(1000, dtype=float)
     prices = 200.0 * np.exp(0.003 * days) + 50.0 * np.sin(days / 30.0)
     btc_series = pd.Series(prices, index=dates, name="btc_close")
@@ -16,28 +29,140 @@ def test_trolololo_computation_properties():
     assert isinstance(result, pd.Series)
     assert len(result) == len(btc_series)
     assert result.index.equals(btc_series.index)
-    
+
     valid_vals = result.dropna()
     assert (valid_vals >= 0.0).all()
     assert (valid_vals <= 100.0).all()
+
 
 def test_cycle_marks_shape():
     """Verify high and low mark boolean arrays match price series length."""
     dates = pd.date_range("2015-01-01", periods=500, freq="D")
     prices = pd.Series(np.linspace(300.0, 10000.0, 500), index=dates)
-    
+
     high_marks, low_marks = get_cycle_marks(prices)
     assert len(high_marks) == len(prices)
     assert len(low_marks) == len(prices)
     assert high_marks.dtype == bool
     assert low_marks.dtype == bool
 
+
 def test_channel_params_keys():
     """Verify get_channel_params returns expected diagnostic dictionary."""
     dates = pd.date_range("2015-01-01", periods=800, freq="D")
     prices = pd.Series(np.linspace(500.0, 20000.0, 800), index=dates)
-    
+
     params = get_channel_params(prices)
     assert "origin_date" in params
     assert "n_high_marks" in params
     assert "n_low_marks" in params
+
+
+def test_trolololo_d_raw_invariance_across_start_dates():
+    """
+    Verify OLS drift regression uses calendar days (d_raw) rather than array position.
+
+    Two series starting on different dates that include the exact same confirmed cycle marks
+    (2015-01-14, 2017-12-17, 2018-12-15, 2021-11-10, 2022-11-21) must produce identical
+    channel slopes/intercepts and identical Trolololo values on their overlapping dates.
+    """
+    full = _make_btc_series("2014-01-01", "2024-01-01")
+    later = full.loc["2014-09-17":].copy()
+
+    sig_full = compute_trolololo(full)
+    sig_later = compute_trolololo(later)
+
+    np.testing.assert_allclose(
+        sig_full.loc[later.index].values,
+        sig_later.values,
+        rtol=1e-12,
+        atol=1e-12,
+    )
+
+    params_full = get_channel_params(full)
+    params_later = get_channel_params(later)
+    assert params_full["top_drift_slope"] == params_later["top_drift_slope"]
+    assert params_full["top_drift_intercept"] == params_later["top_drift_intercept"]
+    assert params_full["bottom_drift_slope"] == params_later["bottom_drift_slope"]
+    assert params_full["bottom_drift_intercept"] == params_later["bottom_drift_intercept"]
+
+
+def test_compute_trolololo_bands_contract():
+    """Verify compute_trolololo_bands returns USD-space (top_band, bottom_band) matching index."""
+    btc = _make_btc_series("2014-09-17", "2024-01-01")
+
+    top_band, bottom_band = compute_trolololo_bands(btc)
+    assert isinstance(top_band, pd.Series)
+    assert isinstance(bottom_band, pd.Series)
+    assert top_band.index.equals(btc.index)
+    assert bottom_band.index.equals(btc.index)
+    assert np.isfinite(top_band).all()
+    assert np.isfinite(bottom_band).all()
+    assert (top_band > bottom_band).all()
+    assert (bottom_band > 0.0).all()
+
+    # Cross-check normalization consistency: log(price) between log(bottom) and log(top)
+    expected = np.clip(
+        (np.log(btc.values) - np.log(bottom_band.values))
+        / (np.log(top_band.values) - np.log(bottom_band.values)),
+        0.0,
+        1.0,
+    ) * 100.0
+    actual = compute_trolololo(btc).values
+    np.testing.assert_allclose(actual, expected, rtol=1e-12, atol=1e-12)
+
+
+def test_trolololo_post_2026_immutability():
+    """
+    Verify appending post-2026 live data causes zero revision to historical values.
+
+    By default (include_algo_marks=False), get_cycle_marks uses only confirmed
+    historical cycle marks (2012-2022), eliminating lookahead and Index Revision Bias
+    when new post-2026 prices arrive (including sharp edge minima/maxima).
+    """
+    btc_2026 = _make_btc_series("2012-01-01", "2026-03-15")
+    # Inject a sharp edge dip in Feb 2026 that previously triggered argrelextrema
+    btc_2026.loc["2026-02-05"] *= 0.35
+
+    btc_2028 = _make_btc_series("2012-01-01", "2028-12-31")
+    btc_2028.loc[btc_2026.index] = btc_2026
+    # Inject extreme post-2026 swings that would shift algorithmic extrema
+    btc_2028.loc["2026-08-01":"2027-06-01"] *= 2.5
+    btc_2028.loc["2027-10-01":"2028-06-01"] *= 0.25
+
+    sig_2026 = compute_trolololo(btc_2026)
+    sig_2028 = compute_trolololo(btc_2028)
+    np.testing.assert_allclose(
+        sig_2026.values,
+        sig_2028.loc[btc_2026.index].values,
+        rtol=1e-12,
+        atol=1e-12,
+        equal_nan=True,
+    )
+
+    top_2026, bot_2026 = compute_trolololo_bands(btc_2026)
+    top_2028, bot_2028 = compute_trolololo_bands(btc_2028)
+    np.testing.assert_allclose(
+        top_2026.values,
+        top_2028.loc[btc_2026.index].values,
+        rtol=1e-12,
+        atol=1e-12,
+        equal_nan=True,
+    )
+    np.testing.assert_allclose(
+        bot_2026.values,
+        bot_2028.loc[btc_2026.index].values,
+        rtol=1e-12,
+        atol=1e-12,
+        equal_nan=True,
+    )
+
+    # Default marks contain no post-2026 algorithmic extrema
+    hi_default, lo_default = get_cycle_marks(btc_2028)
+    post_cutoff = btc_2028.index >= pd.Timestamp("2026-01-01")
+    assert not hi_default[post_cutoff].any()
+    assert not lo_default[post_cutoff].any()
+
+    # Opt-in diagnostic mode still detects post-cutoff extrema
+    hi_algo, lo_algo = get_cycle_marks(btc_2028, include_algo_marks=True)
+    assert hi_algo[post_cutoff].any() or lo_algo[post_cutoff].any()
