@@ -21,21 +21,31 @@ used only by the Simulator's "Live API" mode.
 from __future__ import annotations
 
 import json
+import logging
+import os
+import tempfile
+import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable
 
-import numpy as np
 import numba
+import numpy as np
 import pandas as pd
 
 from core.engine import warmup_numba
+
+logger = logging.getLogger(__name__)
 
 # ── Output path ───────────────────────────────────────────────────────────────
 _ROOT = Path(__file__).resolve().parents[1]
 LIVE_PARAMS_PATH = _ROOT / "data" / "live_optimal_params.json"
 
+# ── Concurrency & rate-limit guards ───────────────────────────────────────────
+_OPT_LOCK = threading.Lock()
+_COOLDOWN_SECONDS: float = 60.0
+_last_run_at: float | None = None
 
 # ── Grid search parameter space (mirrors the core research repository methodology) ────────────────
 BUY_THRESHOLDS  = list(range(1, 46, 1))     # 1, 2 … 45  (45 values)
@@ -64,7 +74,7 @@ class OptimizationResult:
 
 # ── Core Numba grid kernel ────────────────────────────────────────────────────
 
-@numba.njit(cache=True, fastmath=True)
+@numba.njit(cache=True)
 def _full_backtest_kernel(
     open_prices: np.ndarray,
     close_prices: np.ndarray,
@@ -81,6 +91,9 @@ def _full_backtest_kernel(
     Uses same T+1 execution logic as production engine.
     """
     n = len(open_prices)
+    if n < 2:
+        raise ValueError("Insufficient data points for backtesting (need at least 2).")
+
     cash = initial_cash
     btc = 0.0
     trade_count = 0
@@ -124,7 +137,7 @@ def _full_backtest_kernel(
                 trade_count += 1
 
     portfolio_value[n - 1] = cash + (btc * close_prices[n - 1])
-    prev = portfolio_value[n - 2]
+    prev = portfolio_value[n - 2] if n >= 2 else initial_cash
     daily_returns[n - 1] = (portfolio_value[n - 1] - prev) / prev if prev > 0 else 0.0
 
     total_return = (portfolio_value[-1] - initial_cash) / initial_cash
@@ -132,23 +145,22 @@ def _full_backtest_kernel(
     max_dd = 0.0
     peak = portfolio_value[0]
     for i in range(n):
-        if portfolio_value[i] > peak:
-            peak = portfolio_value[i]
+        peak = max(peak, portfolio_value[i])
         dd = (peak - portfolio_value[i]) / peak if peak > 0 else 0.0
-        if dd > max_dd:
-            max_dd = dd
+        max_dd = max(max_dd, dd)
 
-    mean_r = np.mean(daily_returns)
-    std_r  = np.std(daily_returns)
+    returns_slice = daily_returns[1:] if n > 1 else daily_returns
+    mean_r = np.mean(returns_slice)
+    std_r = np.std(returns_slice)
     rf_daily = 0.04 / 365.0
     sharpe = 0.0
-    if std_r > 1e-10:
+    if std_r > 0.0:
         sharpe = ((mean_r - rf_daily) / std_r) * np.sqrt(365.0)
 
     return total_return, sharpe, max_dd, trade_count
 
 
-@numba.njit(cache=True, parallel=True, fastmath=True)
+@numba.njit(cache=True, parallel=True)
 def _grid_search_kernel(
     open_prices: np.ndarray,
     close_prices: np.ndarray,
@@ -159,12 +171,15 @@ def _grid_search_kernel(
     alloc_sells: np.ndarray,
     initial_cash: float,
     fee_rate: float,
-    results: np.ndarray,   # shape: (N_combos, 6) — buy, sell, abuy, asell, ret, sharpe, dd, tc
+    results: np.ndarray,   # shape: (N_combos, 8) — buy, sell, abuy, asell, ret, sharpe, dd, tc
 ) -> None:
     """
     Parallel grid sweep. Writes each row of `results` in-place.
     results columns: buy_thresh, sell_thresh, alloc_buy, alloc_sell, total_return, sharpe, max_dd, trade_count
     """
+    if len(open_prices) < 2:
+        raise ValueError("Insufficient data points for backtesting (need at least 2).")
+
     n_buy   = len(buy_thresholds)
     n_sell  = len(sell_thresholds)
     n_abuy  = len(alloc_buys)
@@ -230,117 +245,196 @@ def run_live_optimization(
     fee_rate: float = 0.001,
     progress_cb: Callable[[float, str], None] | None = None,
     split_date: str = "2021-01-01",
+    persist: bool = True,
+    enforce_cooldown: bool = True,
 ) -> OptimizationResult:
     """
     Run full grid search against the provided DataFrame (should be live BTC data with Trolololo).
 
     Parameters
     ----------
-    df           : DataFrame with btc_open, btc_close, trolololo columns; DatetimeIndex
-    initial_cash : Starting capital
-    fee_rate     : Per-trade fee
-    progress_cb  : Optional (pct_float, status_str) callback for Streamlit progress bars
-    split_date   : IS/OOS split date for in-sample optimization (default 2021-01-01)
+    df               : DataFrame with btc_open, btc_close, trolololo columns; DatetimeIndex
+    initial_cash     : Starting capital (must be finite and > 0)
+    fee_rate         : Per-trade fee (must be finite and in [0.0, 0.10])
+    progress_cb      : Optional (pct_float, status_str) callback for Streamlit progress bars
+    split_date       : IS/OOS split date for in-sample optimization (default 2021-01-01)
+    persist          : When True, atomically persist results to LIVE_PARAMS_PATH
+    enforce_cooldown : When True, enforce per-process cooldown between runs
 
-    Returns      : OptimizationResult dataclass
+    Returns          : OptimizationResult dataclass
     """
-    if progress_cb:
-        progress_cb(0.02, "Preparing data arrays…")
+    global _last_run_at
 
-    # Use is-sample slice for optimization (prevents overfitting on OOS)
-    df_is = df[df.index < split_date].copy()
-    df_is = df_is.dropna(subset=["btc_open", "btc_close", "trolololo"])
-
-    if len(df_is) < 200:
+    if not _OPT_LOCK.acquire(blocking=False):
         return OptimizationResult(
             status="error",
-            error_message=f"Insufficient IS data: only {len(df_is)} rows before {split_date}."
+            error_message="An optimization is already running. Please wait for it to finish.",
         )
 
-    open_prices  = df_is["btc_open"].to_numpy(dtype=np.float64)
-    close_prices = df_is["btc_close"].to_numpy(dtype=np.float64)
-    signal       = df_is["trolololo"].to_numpy(dtype=np.float64)
+    try:
+        if enforce_cooldown and _last_run_at is not None:
+            elapsed_since = time.monotonic() - _last_run_at
+            if elapsed_since < _COOLDOWN_SECONDS:
+                remaining = int(np.ceil(_COOLDOWN_SECONDS - elapsed_since))
+                return OptimizationResult(
+                    status="error",
+                    error_message=(
+                        f"Optimizer cooldown active. Please wait {remaining}s before running again."
+                    ),
+                )
 
-    buy_arr  = np.array(BUY_THRESHOLDS,  dtype=np.float64)
-    sell_arr = np.array(SELL_THRESHOLDS, dtype=np.float64)
-    alloc_arr = np.array(ALLOC_STEPS,   dtype=np.float64)
+        if not np.isfinite(initial_cash) or initial_cash <= 0.0:
+            return OptimizationResult(
+                status="error",
+                error_message="initial_cash must be finite and strictly positive.",
+            )
+        if not np.isfinite(fee_rate) or not (0.0 <= fee_rate <= 0.10):
+            return OptimizationResult(
+                status="error",
+                error_message="fee_rate must be finite and between 0.0 and 0.10.",
+            )
 
-    n_combos = len(buy_arr) * len(sell_arr) * len(alloc_arr) ** 2
-    results_arr = np.zeros((n_combos, 8), dtype=np.float64)
+        try:
+            split_ts = pd.Timestamp(split_date)
+        except (ValueError, TypeError):
+            return OptimizationResult(
+                status="error",
+                error_message=f"Invalid split_date: {split_date!r}. Expected ISO YYYY-MM-DD.",
+            )
+        if pd.isna(split_ts):
+            return OptimizationResult(
+                status="error",
+                error_message="Invalid split_date: cannot be empty or NaT.",
+            )
 
-    if progress_cb:
-        progress_cb(0.08, f"Running {n_combos:,} combinations (Numba parallel)…")
+        required_cols = {"btc_open", "btc_close", "trolololo"}
+        missing_cols = required_cols - set(df.columns)
+        if missing_cols:
+            return OptimizationResult(
+                status="error",
+                error_message=f"Missing required columns: {sorted(missing_cols)}.",
+            )
 
-    t0 = time.perf_counter()
-    _grid_search_kernel(
-        open_prices, close_prices, signal,
-        buy_arr, sell_arr, alloc_arr, alloc_arr,
-        initial_cash, fee_rate, results_arr,
-    )
-    elapsed = time.perf_counter() - t0
+        if progress_cb:
+            progress_cb(0.02, "Preparing data arrays…")
 
-    if progress_cb:
-        progress_cb(0.70, "Extracting best parameters…")
+        # Use in-sample slice for optimization (prevents overfitting on OOS)
+        df_is = df[df.index < split_ts].copy()
+        df_is = df_is.dropna(subset=["btc_open", "btc_close", "trolololo"])
 
-    # Filter invalid (buy >= sell) rows
-    valid_mask = (results_arr[:, 0] < results_arr[:, 1]) & (results_arr[:, 4] > -999.0)
-    valid = results_arr[valid_mask]
+        if len(df_is) < 200:
+            return OptimizationResult(
+                status="error",
+                error_message=f"Insufficient IS data: only {len(df_is)} rows before {split_date}.",
+            )
 
-    if len(valid) == 0:
-        return OptimizationResult(status="error", error_message="No valid combinations found.")
+        open_prices  = df_is["btc_open"].to_numpy(dtype=np.float64)
+        close_prices = df_is["btc_close"].to_numpy(dtype=np.float64)
+        signal       = df_is["trolololo"].to_numpy(dtype=np.float64)
 
-    def _best_row(arr: np.ndarray, col: int, maximize: bool) -> dict:
-        idx = np.argmax(arr[:, col]) if maximize else np.argmin(arr[:, col])
-        r = arr[idx]
-        return {
-            "threshold_buy":       int(r[0]),
-            "threshold_sell":      int(r[1]),
-            "allocation_buy_pct":  round(float(r[2]), 4),
-            "allocation_sell_pct": round(float(r[3]), 4),
-            "total_return":        round(float(r[4]), 6),
-            "sharpe_ratio":        round(float(r[5]), 6),
-            "max_drawdown":        round(float(r[6]), 6),
-            "trade_count":         int(r[7]),
-        }
+        if not (np.isfinite(open_prices).all() and (open_prices > 0.0).all()):
+            return OptimizationResult(
+                status="error",
+                error_message="btc_open contains non-finite or non-positive values.",
+            )
+        if not (np.isfinite(close_prices).all() and (close_prices > 0.0).all()):
+            return OptimizationResult(
+                status="error",
+                error_message="btc_close contains non-finite or non-positive values.",
+            )
+        if not np.isfinite(signal).all():
+            return OptimizationResult(
+                status="error",
+                error_message="trolololo signal contains non-finite values.",
+            )
 
-    best_return   = _best_row(valid, 4, True)
-    best_sharpe   = _best_row(valid, 5, True)
-    best_drawdown = _best_row(valid, 6, False)  # minimize positive drawdown (maximize=False)
+        buy_arr   = np.array(BUY_THRESHOLDS,  dtype=np.float64)
+        sell_arr  = np.array(SELL_THRESHOLDS, dtype=np.float64)
+        alloc_arr = np.array(ALLOC_STEPS,     dtype=np.float64)
 
-    # Buy & Hold benchmark on IS period
-    bh_start = float(open_prices[0])
-    bh_end   = float(close_prices[-1])
-    bh_return = (bh_end - bh_start) / bh_start if bh_start > 0 else 0.0
+        n_combos = len(buy_arr) * len(sell_arr) * len(alloc_arr) ** 2
+        results_arr = np.zeros((n_combos, 8), dtype=np.float64)
 
-    if progress_cb:
-        progress_cb(0.90, "Saving results…")
+        if progress_cb:
+            progress_cb(0.08, f"Running {n_combos:,} combinations (Numba parallel)…")
 
-    date_min = str(df_is.index.min().date())
-    date_max = str(df_is.index.max().date())
+        t0 = time.perf_counter()
+        _grid_search_kernel(
+            open_prices, close_prices, signal,
+            buy_arr, sell_arr, alloc_arr, alloc_arr,
+            float(initial_cash), float(fee_rate), results_arr,
+        )
+        elapsed = time.perf_counter() - t0
 
-    result = OptimizationResult(
-        status="success",
-        total_combinations=n_combos,
-        elapsed_seconds=round(elapsed, 2),
-        data_source="live_yfinance_independent",
-        data_date_range=f"{date_min} → {date_max}",
-        max_return=best_return,
-        max_sharpe=best_sharpe,
-        min_drawdown=best_drawdown,
-        buy_and_hold={"total_return": round(bh_return, 6)},
-    )
+        if progress_cb:
+            progress_cb(0.70, "Extracting best parameters…")
 
-    # Persist to disk
-    _save_result(result)
+        # Filter invalid (buy >= sell) rows without copying when all rows are valid
+        valid_mask = (results_arr[:, 0] < results_arr[:, 1]) & (results_arr[:, 4] > -999.0)
+        valid = results_arr if valid_mask.all() else results_arr[valid_mask]
 
-    if progress_cb:
-        progress_cb(1.0, "Done!")
+        if len(valid) == 0:
+            del valid, results_arr
+            return OptimizationResult(status="error", error_message="No valid combinations found.")
 
-    return result
+        def _best_row(arr: np.ndarray, col: int, maximize: bool) -> dict:
+            idx = np.argmax(arr[:, col]) if maximize else np.argmin(arr[:, col])
+            r = arr[idx]
+            return {
+                "threshold_buy":       int(r[0]),
+                "threshold_sell":      int(r[1]),
+                "allocation_buy_pct":  round(float(r[2]), 4),
+                "allocation_sell_pct": round(float(r[3]), 4),
+                "total_return":        round(float(r[4]), 6),
+                "sharpe_ratio":        round(float(r[5]), 6),
+                "max_drawdown":        round(float(r[6]), 6),
+                "trade_count":         int(r[7]),
+            }
+
+        best_return   = _best_row(valid, 4, True)
+        best_sharpe   = _best_row(valid, 5, True)
+        best_drawdown = _best_row(valid, 6, False)  # minimize positive drawdown (maximize=False)
+        del valid, results_arr
+
+        # Buy & Hold benchmark on IS period (including entry fee, matching core/engine.py)
+        bh_start = float(open_prices[0])
+        bh_end   = float(close_prices[-1])
+        bh_btc = (initial_cash * (1.0 - fee_rate)) / bh_start
+        bh_return = ((bh_btc * bh_end) - initial_cash) / initial_cash
+
+        if progress_cb:
+            progress_cb(0.90, "Saving results…" if persist else "Finalizing results…")
+
+        date_min = str(df_is.index.min().date())
+        date_max = str(df_is.index.max().date())
+
+        result = OptimizationResult(
+            status="success",
+            total_combinations=n_combos,
+            elapsed_seconds=round(elapsed, 2),
+            data_source="live_yfinance_independent",
+            data_date_range=f"{date_min} → {date_max}",
+            max_return=best_return,
+            max_sharpe=best_sharpe,
+            min_drawdown=best_drawdown,
+            buy_and_hold={"total_return": round(bh_return, 6)},
+        )
+
+        if persist:
+            _save_result(result)
+
+        _last_run_at = time.monotonic()
+
+        if progress_cb:
+            progress_cb(1.0, "Done!")
+
+        return result
+    finally:
+        _OPT_LOCK.release()
 
 
 def _save_result(result: OptimizationResult) -> None:
-    """Serialize OptimizationResult to live_optimal_params.json."""
+    """Atomically serialize OptimizationResult to live_optimal_params.json."""
     payload = {
         "generated_at":       time.strftime("%Y-%m-%d %H:%M:%S"),
         "status":             result.status,
@@ -354,13 +448,41 @@ def _save_result(result: OptimizationResult) -> None:
         "buy_and_hold":       result.buy_and_hold,
     }
     LIVE_PARAMS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(LIVE_PARAMS_PATH, "w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=2)
+    tmp_path: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=LIVE_PARAMS_PATH.parent,
+            prefix=".live_params_",
+            suffix=".tmp",
+            delete=False,
+        ) as tmp:
+            tmp_path = tmp.name
+            json.dump(payload, tmp, indent=2)
+            tmp.flush()
+            os.fsync(tmp.fileno())
+        os.replace(tmp_path, LIVE_PARAMS_PATH)
+    except OSError:
+        if tmp_path is not None and os.path.exists(tmp_path):
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+        raise
 
 
 def load_live_params() -> dict | None:
-    """Load live_optimal_params.json if it exists, else return None."""
+    """Load live_optimal_params.json if it exists and is valid JSON object, else return None."""
     if not LIVE_PARAMS_PATH.exists():
         return None
-    with open(LIVE_PARAMS_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(LIVE_PARAMS_PATH, encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        logger.warning("Failed to load live params from %s: %s", LIVE_PARAMS_PATH, exc)
+        return None
+    if not isinstance(data, dict):
+        logger.warning("Ignoring non-object JSON payload in %s", LIVE_PARAMS_PATH)
+        return None
+    return data
