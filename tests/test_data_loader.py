@@ -113,7 +113,33 @@ def test_load_smart_dataset_fallback_sets_is_live_false(monkeypatch):
     assert not df.empty
 
 
-def test_load_heatmap_pivot_and_top100_trials(monkeypatch, tmp_path):
+def test_load_heatmap_pivot_and_top100_trials_from_research():
+    st.cache_data.clear()
+    for scenario in (1, 2):
+        pivot = load_heatmap_pivot(scenario, metric="total_return")
+        assert pivot.shape == (46, 45)
+        assert int(pivot.index[0]) == 100
+        assert int(pivot.index[-1]) == 55
+        assert len(pivot.columns) == 45
+
+        top100 = load_top100_trials(scenario, metric="total_return")
+        assert len(top100) == 100
+        expected_cols = {
+            "threshold_buy",
+            "threshold_sell",
+            "allocation_buy_pct",
+            "allocation_sell_pct",
+            "total_return",
+            "max_drawdown",
+            "sharpe_ratio",
+            "win_rate",
+            "trade_count",
+        }
+        assert expected_cols.issubset(top100.columns)
+        assert top100["total_return"].is_monotonic_decreasing
+
+
+def test_load_heatmap_pivot_and_top100_fallback_to_trial_log(monkeypatch, tmp_path):
     st.cache_data.clear()
     rows = []
     for i in range(150):
@@ -132,6 +158,7 @@ def test_load_heatmap_pivot_and_top100_trials(monkeypatch, tmp_path):
         )
     s1_path = tmp_path / "s1.parquet"
     pd.DataFrame(rows).to_parquet(s1_path)
+    monkeypatch.setattr(dl, "RESEARCH_DIR", tmp_path / "missing_research")
     monkeypatch.setattr(dl, "SCENARIO_1_LOG", s1_path)
 
     pivot = load_heatmap_pivot(1, metric="total_return")
@@ -142,3 +169,41 @@ def test_load_heatmap_pivot_and_top100_trials(monkeypatch, tmp_path):
     assert len(top100) == 100
     assert top100["total_return"].iloc[0] == pytest.approx(149.0)
     assert top100["total_return"].iloc[-1] == pytest.approx(50.0)
+
+
+def test_load_heatmap_pivot_and_top100_missing_raises(monkeypatch, tmp_path):
+    st.cache_data.clear()
+    monkeypatch.setattr(dl, "RESEARCH_DIR", tmp_path / "no_research")
+    monkeypatch.setattr(dl, "SCENARIO_1_LOG", tmp_path / "no_s1.parquet")
+
+    with pytest.raises(FileNotFoundError):
+        load_heatmap_pivot(1, metric="total_return")
+
+    with pytest.raises(FileNotFoundError):
+        load_top100_trials(1, metric="total_return")
+
+    with pytest.raises(FileNotFoundError):
+        dl.load_scenario1_log()
+
+
+def test_load_smart_dataset_preserves_immutable_trolololo_with_origin_nan(monkeypatch):
+    st.cache_data.clear()
+    df_static = load_static_dataset()
+    assert len(df_static) == 5188
+    assert pd.isna(df_static.loc[pd.Timestamp("2012-01-01"), "trolololo"])
+    assert df_static["trolololo"].iloc[1:].notna().all()
+
+    mock_yf = pd.DataFrame(
+        {"Close": [85000.0], "Open": [84500.0]},
+        index=pd.to_datetime(["2026-03-16"]),
+    )
+    monkeypatch.setattr(dl.yf, "download", lambda *a, **kw: mock_yf)
+
+    combined = load_smart_dataset()
+    assert combined.attrs.get("is_live") is True
+    assert len(combined) == 5189
+    assert pd.isna(combined.loc[pd.Timestamp("2012-01-01"), "trolololo"])
+    assert pd.notna(combined.loc[pd.Timestamp("2026-03-16"), "trolololo"])
+    # Historical confirmed-cycle Trolololo values remain immutable when live data is appended
+    diff = (combined.loc[df_static.index[1:], "trolololo"] - df_static["trolololo"].iloc[1:]).abs()
+    assert diff.max() < 1e-12

@@ -110,3 +110,59 @@ def test_compute_trolololo_bands_contract():
     ) * 100.0
     actual = compute_trolololo(btc).values
     np.testing.assert_allclose(actual, expected, rtol=1e-12, atol=1e-12)
+
+
+def test_trolololo_post_2026_immutability():
+    """
+    Verify appending post-2026 live data causes zero revision to historical values.
+
+    By default (include_algo_marks=False), get_cycle_marks uses only confirmed
+    historical cycle marks (2012-2022), eliminating lookahead and Index Revision Bias
+    when new post-2026 prices arrive (including sharp edge minima/maxima).
+    """
+    btc_2026 = _make_btc_series("2012-01-01", "2026-03-15")
+    # Inject a sharp edge dip in Feb 2026 that previously triggered argrelextrema
+    btc_2026.loc["2026-02-05"] *= 0.35
+
+    btc_2028 = _make_btc_series("2012-01-01", "2028-12-31")
+    btc_2028.loc[btc_2026.index] = btc_2026
+    # Inject extreme post-2026 swings that would shift algorithmic extrema
+    btc_2028.loc["2026-08-01":"2027-06-01"] *= 2.5
+    btc_2028.loc["2027-10-01":"2028-06-01"] *= 0.25
+
+    sig_2026 = compute_trolololo(btc_2026)
+    sig_2028 = compute_trolololo(btc_2028)
+    np.testing.assert_allclose(
+        sig_2026.values,
+        sig_2028.loc[btc_2026.index].values,
+        rtol=1e-12,
+        atol=1e-12,
+        equal_nan=True,
+    )
+
+    top_2026, bot_2026 = compute_trolololo_bands(btc_2026)
+    top_2028, bot_2028 = compute_trolololo_bands(btc_2028)
+    np.testing.assert_allclose(
+        top_2026.values,
+        top_2028.loc[btc_2026.index].values,
+        rtol=1e-12,
+        atol=1e-12,
+        equal_nan=True,
+    )
+    np.testing.assert_allclose(
+        bot_2026.values,
+        bot_2028.loc[btc_2026.index].values,
+        rtol=1e-12,
+        atol=1e-12,
+        equal_nan=True,
+    )
+
+    # Default marks contain no post-2026 algorithmic extrema
+    hi_default, lo_default = get_cycle_marks(btc_2028)
+    post_cutoff = btc_2028.index >= pd.Timestamp("2026-01-01")
+    assert not hi_default[post_cutoff].any()
+    assert not lo_default[post_cutoff].any()
+
+    # Opt-in diagnostic mode still detects post-cutoff extrema
+    hi_algo, lo_algo = get_cycle_marks(btc_2028, include_algo_marks=True)
+    assert hi_algo[post_cutoff].any() or lo_algo[post_cutoff].any()

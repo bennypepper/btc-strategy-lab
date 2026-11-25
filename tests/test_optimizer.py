@@ -185,3 +185,53 @@ def test_run_live_optimization_invalid_price_and_signal_values(monkeypatch):
     df_bad_sig.iloc[10, 2] = np.inf
     res2 = opt.run_live_optimization(df_bad_sig, persist=False, enforce_cooldown=False)
     assert res2.status == "error"
+
+
+def test_grid_search_best_kernel_matches_bruteforce_and_tie_breaking():
+    """Verify O(1)-RAM _grid_search_best_kernel matches brute-force _grid_search_kernel bit-for-bit."""
+    df = _make_sample_df(220, start="2019-01-01")
+    open_p = df["btc_open"].to_numpy(dtype=np.float64)
+    close_p = df["btc_close"].to_numpy(dtype=np.float64)
+    sig = df["trolololo"].to_numpy(dtype=np.float64)
+
+    # Include an overlapping threshold (bt=60 >= st=60) to verify invalid combos are skipped cleanly
+    buy_arr = np.array([15.0, 25.0, 40.0, 60.0], dtype=np.float64)
+    sell_arr = np.array([60.0, 75.0, 90.0], dtype=np.float64)
+    alloc_arr = np.array([0.05, 0.15, 0.25], dtype=np.float64)
+
+    n_combos = len(buy_arr) * len(sell_arr) * len(alloc_arr) ** 2
+    brute = np.zeros((n_combos, 8), dtype=np.float64)
+    opt._grid_search_kernel(
+        open_p, close_p, sig, buy_arr, sell_arr, alloc_arr, alloc_arr, 100_000.0, 0.001, brute
+    )
+    valid_brute = brute[(brute[:, 0] < brute[:, 1]) & (brute[:, 4] > -999.0)]
+    expected_max_ret = valid_brute[int(np.argmax(valid_brute[:, 4]))]
+    expected_max_sharpe = valid_brute[int(np.argmax(valid_brute[:, 5]))]
+    expected_min_dd = valid_brute[int(np.argmin(valid_brute[:, 6]))]
+
+    best_per_buy = np.full((len(buy_arr), 3, 8), np.nan, dtype=np.float64)
+    opt._grid_search_best_kernel(
+        open_p, close_p, sig, buy_arr, sell_arr, alloc_arr, alloc_arr, 100_000.0, 0.001, best_per_buy
+    )
+
+    got_max_ret, got_max_sharpe, got_min_dd = opt._reduce_best_per_buy(best_per_buy)
+    np.testing.assert_array_equal(got_max_ret, expected_max_ret)
+    np.testing.assert_array_equal(got_max_sharpe, expected_max_sharpe)
+    np.testing.assert_array_equal(got_min_dd, expected_min_dd)
+
+    # Tie-breaking test: constant signal outside buy/sell bounds produces identical 0-trade rows
+    flat_sig = np.full(len(sig), 50.0, dtype=np.float64)
+    brute_tie = np.zeros((n_combos, 8), dtype=np.float64)
+    opt._grid_search_kernel(
+        open_p, close_p, flat_sig, buy_arr, sell_arr, alloc_arr, alloc_arr, 100_000.0, 0.001, brute_tie
+    )
+    valid_tie = brute_tie[(brute_tie[:, 0] < brute_tie[:, 1]) & (brute_tie[:, 4] > -999.0)]
+
+    best_tie = np.full((len(buy_arr), 3, 8), np.nan, dtype=np.float64)
+    opt._grid_search_best_kernel(
+        open_p, close_p, flat_sig, buy_arr, sell_arr, alloc_arr, alloc_arr, 100_000.0, 0.001, best_tie
+    )
+    tie_ret, tie_sharpe, tie_dd = opt._reduce_best_per_buy(best_tie)
+    np.testing.assert_array_equal(tie_ret, valid_tie[int(np.argmax(valid_tie[:, 4]))])
+    np.testing.assert_array_equal(tie_sharpe, valid_tie[int(np.argmax(valid_tie[:, 5]))])
+    np.testing.assert_array_equal(tie_dd, valid_tie[int(np.argmin(valid_tie[:, 6]))])
