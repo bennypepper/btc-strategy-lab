@@ -1,0 +1,332 @@
+@import "tailwindcss";
+
+:root {
+  --bg-canvas: #fff8f1;
+  --bg-secondary: #ede8e0;
+  --bg-card: #ffffff;
+  --text: #213448;
+  --muted: #547792;
+  --accent: #0a7c6e;
+  --accent-hover: #085f54;
+  --border: #c9c2b8;
+  --border-light: #d4cdc4;
+  --benchmark: #d97706;
+  --buy: #16a34a;
+  --sell: #dc2626;
+  --signal: #0369a1;
+}
+
+@layer base {
+  html,
+  body {
+    background-color: var(--bg-canvas);
+    color: var(--text);
+    font-family: var(--font-body), "Work Sans", sans-serif;
+    letter-spacing: -0.01em;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display), "Space Grotesk", sans-serif;
+    letter-spacing: -0.03em;
+    font-weight: 700;
+    color: var(--text);
+  }
+}
+
+.font-display {
+  font-family: var(--font-display), "Space Grotesk", sans-serif;
+}
+
+.font-body {
+  font-family: var(--font-body), "Work Sans", sans-serif;
+}
+
+.font-label {
+  font-family: var(--font-mono-label), "Inter", sans-serif;
+}
+
+/* ── Page header typography ── */
+.page-title {
+  font-family: var(--font-display), "Space Grotesk", sans-serif;
+  font-size: clamp(1.8rem, 3.5vw, 2.5rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: var(--text);
+  line-height: 1.08;
+}
+
+.page-subtitle {
+  font-family: var(--font-body), "Work Sans", sans-serif;
+  font-size: 0.94rem;
+  color: var(--muted);
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.hero-tagline {
+  font-family: var(--font-body), "Work Sans", sans-serif;
+  font-size: 1rem;
+  color: var(--accent);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  line-height: 1.5;
+  border-left: 3px solid var(--accent);
+  padding-left: 0.85rem;
+  max-width: 700px;
+}
+
+/* ── Neo-Brutalist Cards & Containers ── */
+.brutal-card {
+  background: var(--bg-card);
+  border: 2px solid var(--border);
+  border-radius: 0px;
+  box-shadow: 4px 4px 0px 0px rgba(33, 52, 72, 0.18);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.brutal-card:hover {
+  box-shadow: 6px 6px 0px 0px rgba(33, 52, 72, 0.28);
+  transform: translate(-1px, -1px);
+}
+
+.brutal-card-static {
+  background: var(--bg-card);
+  border: 2px solid var(--border);
+  border-radius: 0px;
+  box-shadow: 4px 4px 0px 0px rgba(33, 52, 72, 0.15);
+}
+
+.brutal-table-wrap {
+  background: var(--bg-card);
+  border: 2px solid var(--border);
+  border-radius: 0px;
+  box-shadow: 4px 4px 0px 0px rgba(33, 52, 72, 0.12);
+  overflow-x: auto;
+}
+
+/* ── Tactile Neo-Brutalist Buttons ── */
+.brutal-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border-radius: 0px;
+  font-family: var(--font-display), "Space Grotesk", sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  border: 2px solid var(--text);
+  background: var(--bg-card);
+  color: var(--text);
+  padding: 0.5rem 0.95rem;
+  box-shadow: 3px 3px 0px 0px rgba(33, 52, 72, 0.2);
+  transition: transform 0.1s ease, box-shadow 0.1s ease, border-color 0.15s ease, color 0.15s ease;
+  cursor: pointer;
+}
+
+.brutal-btn:hover:not(:disabled) {
+  transform: translate(-2px, -2px);
+  box-shadow: 5px 5px 0px 0px rgba(33, 52, 72, 0.3);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.brutal-btn:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 0px 0px 0px 0px rgba(33, 52, 72, 0);
+}
+
+.brutal-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.brutal-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border-radius: 0px;
+  font-family: var(--font-display), "Space Grotesk", sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  background: var(--accent);
+  border: 2px solid var(--accent);
+  color: #ffffff;
+  padding: 0.65rem 1.15rem;
+  box-shadow: 4px 4px 0px 0px rgba(10, 124, 110, 0.35);
+  transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.15s ease;
+  cursor: pointer;
+}
+
+.brutal-btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: #ffffff;
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px 0px rgba(10, 124, 110, 0.45);
+}
+
+.brutal-btn-primary:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 0px 0px 0px 0px rgba(10, 124, 110, 0);
+}
+
+.brutal-btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── Navigation Cards (Home) ── */
+.brutal-nav-card {
+  background: var(--bg-card);
+  border: 2px solid var(--border);
+  border-radius: 0px;
+  padding: 1.75rem 1.5rem 1.4rem;
+  min-height: 270px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.65rem;
+  box-shadow: 5px 5px 0px 0px rgba(33, 52, 72, 0.15);
+  transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+}
+
+.group:hover .brutal-nav-card,
+.brutal-nav-card:hover {
+  border-color: var(--accent);
+  box-shadow: 7px 7px 0px 0px rgba(10, 124, 110, 0.22);
+  transform: translate(-2px, -2px);
+}
+
+.brutal-nav-card-icon {
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f2ede6;
+  border: 2px solid var(--border-light);
+  flex-shrink: 0;
+  margin-bottom: 0.2rem;
+}
+
+.brutal-nav-card-cta {
+  margin-top: auto;
+  width: 100%;
+  padding: 0.52rem 0.8rem;
+  background: var(--bg-card);
+  border: 2px solid var(--text);
+  color: var(--text);
+  font-family: var(--font-display), "Space Grotesk", sans-serif;
+  font-weight: 600;
+  font-size: 0.85rem;
+  letter-spacing: -0.01em;
+  box-shadow: 3px 3px 0px 0px rgba(33, 52, 72, 0.14);
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  text-align: center;
+}
+
+.group:hover .brutal-nav-card-cta,
+.brutal-nav-card:hover .brutal-nav-card-cta {
+  background: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
+  box-shadow: 2px 2px 0px 0px rgba(10, 124, 110, 0.3);
+}
+
+/* ── Banners, Disclosures, Strips & Badges ── */
+.brutal-disclaimer {
+  background: #fff5f5;
+  border: 2px solid rgba(220, 60, 60, 0.35);
+  border-radius: 0px;
+  padding: 0.95rem 1.3rem;
+  font-size: 0.84rem;
+  color: #5a1a1a;
+  line-height: 1.65;
+  box-shadow: 3px 3px 0px 0px rgba(220, 60, 60, 0.12);
+}
+
+.brutal-disclosure {
+  background: #fffbeb;
+  border: 2px solid var(--benchmark);
+  border-radius: 0px;
+  padding: 1.1rem 1.5rem;
+  font-size: 0.86rem;
+  color: #78350f;
+  line-height: 1.7;
+  box-shadow: 4px 4px 0px 0px rgba(217, 119, 6, 0.15);
+}
+
+.brutal-info-strip {
+  background: #edf4f7;
+  border: 2px solid #94b4c1;
+  border-radius: 0px;
+  padding: 0.75rem 1rem;
+  font-size: 0.84rem;
+  color: var(--text);
+  box-shadow: 2px 2px 0px 0px rgba(84, 119, 146, 0.2);
+}
+
+.brutal-warn-badge {
+  background: #fffbeb;
+  border: 2px solid var(--benchmark);
+  border-radius: 0px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.8rem;
+  color: #92400e;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  box-shadow: 2px 2px 0px 0px rgba(217, 119, 6, 0.2);
+  font-family: var(--font-body), "Work Sans", sans-serif;
+}
+
+/* ── Labels & Metric Typography ── */
+.section-label {
+  font-family: var(--font-mono-label), "Inter", sans-serif;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.metric-label {
+  font-family: var(--font-mono-label), "Inter", sans-serif;
+  font-size: 0.68rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+
+.metric-value {
+  font-family: var(--font-display), "Space Grotesk", sans-serif;
+  font-size: clamp(1rem, 1.8vw, 1.55rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.25;
+  color: var(--accent);
+  word-break: break-word;
+  overflow-wrap: break-word;
+  margin-bottom: 0.25rem;
+}
+
+.metric-subtext {
+  font-family: var(--font-mono-label), "Inter", sans-serif;
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.brutal-divider {
+  border: 0;
+  border-top: 2px solid var(--border-light);
+  margin: 2.25rem 0;
+}
