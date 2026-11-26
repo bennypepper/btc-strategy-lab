@@ -1,0 +1,158 @@
+{
+  "metadata": {
+    "generated_at": "2026-11-26 01:04:43",
+    "total_trials_per_run": 1293750
+  },
+  "scenario_1": {
+    "algorithm_used": "grid_search",
+    "in_sample": {
+      "max_return": {
+        "threshold_buy": 9.0,
+        "threshold_sell": 99.0,
+        "allocation_buy_pct": 0.25,
+        "allocation_sell_pct": 0.17,
+        "total_return": 127273.45355292108,
+        "max_drawdown": 0.7099562189668583,
+        "sharpe_ratio": 2.105633726275501,
+        "win_rate": 1.0,
+        "trade_count": 213
+      },
+      "min_drawdown": {
+        "threshold_buy": 1.0,
+        "threshold_sell": 70.0,
+        "allocation_buy_pct": 0.01,
+        "allocation_sell_pct": 0.25,
+        "total_return": 1069.960098931132,
+        "max_drawdown": 0.35723490265239644,
+        "sharpe_ratio": 1.9662454937149239,
+        "win_rate": 1.0,
+        "trade_count": 772
+      },
+      "max_sharpe": {
+        "threshold_buy": 4.0,
+        "threshold_sell": 75.0,
+        "allocation_buy_pct": 0.25,
+        "allocation_sell_pct": 0.12,
+        "total_return": 27459.52838346589,
+        "max_drawdown": 0.5814767672299253,
+        "sharpe_ratio": 2.195476796515221,
+        "win_rate": 1.0,
+        "trade_count": 336
+      }
+    },
+    "out_of_sample": {
+      "max_return": {
+        "threshold_buy": 9.0,
+        "threshold_sell": 99.0,
+        "allocation_buy_pct": 0.25,
+        "allocation_sell_pct": 0.17,
+        "total_return": 2.839448425327481,
+        "max_drawdown": 0.49132548970277357,
+        "sharpe_ratio": 0.7542519101128597,
+        "win_rate": 0.0,
+        "trade_count": 36
+      },
+      "min_drawdown": {
+        "threshold_buy": 1.0,
+        "threshold_sell": 70.0,
+        "allocation_buy_pct": 0.01,
+        "allocation_sell_pct": 0.25,
+        "total_return": 1.5608289564224134,
+        "max_drawdown": 0.42636960638156723,
+        "sharpe_ratio": 0.645309517169652,
+        "win_rate": 0.0,
+        "trade_count": 63
+      },
+      "max_sharpe": {
+        "threshold_buy": 4.0,
+        "threshold_sell": 75.0,
+        "allocation_buy_pct": 0.25,
+        "allocation_sell_pct": 0.12,
+        "total_return": 3.360997622684968,
+        "max_drawdown": 0.49132577305770553,
+        "sharpe_ratio": 0.8333400029366523,
+        "win_rate": 0.0,
+        "trade_count": 36
+      }
+    },
+    "degradation": {
+      "max_return": {
+        "return_degradation_pct": 99.99776901753975,
+        "drawdown_degradation_pct": -30.79495938245887,
+        "sharpe_degradation_pct": 64.17933942162867,
+        "trade_count_oos": 36,
+        "low_sample_warning": false
+      },
+      "min_drawdown": {
+        "return_degradation_pct": 99.85412269504427,
+        "drawdown_degradation_pct": 19.352729315041643,
+        "sharpe_degradation_pct": 67.18062321147715,
+        "trade_count_oos": 63,
+        "low_sample_warning": false
+      },
+      "max_sharpe": {
+        "return_degradation_pct": 99.98776017717512,
+        "drawdown_degradation_pct": -15.503799851142217,
+        "sharpe_degradation_pct": 62.04286903603925,
+        "trade_count_oos": 36,
+        "low_sample_warning": false
+      }
+    }
+  },
+  "scenario_2": {
+    "algorithm_used": "grid_search",
+    "disclosure": "These results were obtained by optimizing across the entire historical dataset (2012-2026) with lookahead bias by design. These configurations cannot be used as predictive trading signals; their sole purpose is to map the historical performance ceiling of the Logarithmic Regression (Trolololo) indicator.",
+    "full_dataset": {
+      "max_return": {
+        "threshold_buy": 7.0,
+        "threshold_sell": 96.0,
+        "allocation_buy_pct": 0.25,
+        "allocation_sell_pct": 0.14,
+        "total_return": 983244.2947290242,
+        "max_drawdown": 0.7099562207580193,
+        "sharpe_ratio": 1.805434290030976,
+        "win_rate": 1.0,
+        "trade_count": 314
+      },
+      "min_drawdown": {
+        "threshold_buy": 1.0,
+        "threshold_sell": 64.0,
+        "allocation_buy_pct": 0.01,
+        "allocation_sell_pct": 0.23,
+        "total_return": 1992.725944413727,
+        "max_drawdown": 0.3572349026524315,
+        "sharpe_ratio": 1.595269551947457,
+        "win_rate": 1.0,
+        "trade_count": 923
+      },
+      "max_sharpe": {
+        "threshold_buy": 4.0,
+        "threshold_sell": 59.0,
+        "allocation_buy_pct": 0.25,
+        "allocation_sell_pct": 0.03,
+        "total_return": 138149.27022381168,
+        "max_drawdown": 0.5903068138639799,
+        "sharpe_ratio": 1.856843330678675,
+        "win_rate": 1.0,
+        "trade_count": 1239
+      }
+    }
+  },
+  "buy_and_hold_benchmark": {
+    "in_sample": {
+      "total_return": 4831.3295,
+      "max_drawdown": 0.8449339207048459,
+      "sharpe_ratio": 1.4713017128504102
+    },
+    "out_of_sample": {
+      "total_return": 1.5053549883990718,
+      "max_drawdown": 0.7666785111486186,
+      "sharpe_ratio": 0.5212545810023493
+    },
+    "full_dataset": {
+      "total_return": 12105.7145,
+      "max_drawdown": 0.8449339207048459,
+      "sharpe_ratio": 1.1893865697487802
+    }
+  }
+}
