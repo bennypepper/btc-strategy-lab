@@ -186,6 +186,8 @@ export function createLogDollarYAxis(
     min: snappedMin,
     max: snappedMax > snappedMin ? snappedMax : snappedMin * 10,
     name: axisTitle,
+    nameLocation: axisTitle ? "middle" : undefined,
+    nameGap: axisTitle ? 54 : undefined,
     nameTextStyle: {
       color: CHART_COLORS.text,
       fontFamily: CHART_FONT,

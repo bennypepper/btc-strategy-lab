@@ -542,10 +542,10 @@ export function SimulatorClient({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <span
             className={[
-              "inline-flex items-center gap-1.5 border-2 px-2.5 py-1 font-label text-[11px] font-bold uppercase",
+              "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap border-2 px-2.5 py-1 font-label text-[11px] font-bold uppercase",
               isLive
                 ? "border-[#0a7c6e] bg-[#0a7c6e]/10 text-[#0a7c6e]"
                 : "border-[#c9c2b8] bg-[#ede8e0] text-[#547792]",

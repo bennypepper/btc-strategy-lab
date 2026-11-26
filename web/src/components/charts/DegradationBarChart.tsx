@@ -81,7 +81,7 @@ export function DegradationBarChart({
         ],
       },
       grid: {
-        left: 64,
+        left: 68,
         right: 24,
         top: 72,
         bottom: 36,
@@ -123,6 +123,8 @@ export function DegradationBarChart({
       yAxis: {
         type: "value",
         name: "Degradation (%)",
+        nameLocation: "middle",
+        nameGap: 48,
         nameTextStyle: {
           color: CHART_COLORS.text,
           fontFamily: CHART_FONT,

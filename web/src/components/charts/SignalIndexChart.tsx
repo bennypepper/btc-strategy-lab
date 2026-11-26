@@ -82,7 +82,7 @@ export function SignalIndexChart({
         data: ["Regression Index", "Buy Signal", "Sell Signal"],
       },
       grid: {
-        left: 64,
+        left: 68,
         right: 24,
         top: 68,
         bottom: 36,
@@ -124,6 +124,8 @@ export function SignalIndexChart({
         max: 100,
         interval: 20,
         name: "Regression Index (0–100)",
+        nameLocation: "middle",
+        nameGap: 44,
         nameTextStyle: {
           color: CHART_COLORS.text,
           fontFamily: CHART_FONT,
