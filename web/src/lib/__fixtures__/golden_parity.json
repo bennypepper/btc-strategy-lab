@@ -1,0 +1,362 @@
+{
+  "datasetRowCount": 5188,
+  "trolololoSamples": [
+    {
+      "index": 0,
+      "date": "2012-01-01",
+      "trolololo": null,
+      "topBand": null,
+      "bottomBand": null
+    },
+    {
+      "index": 1,
+      "date": "2012-01-02",
+      "trolololo": 21.654439457051293,
+      "topBand": 67.76544317928733,
+      "bottomBand": 3.070048537616904
+    },
+    {
+      "index": 100,
+      "date": "2012-04-10",
+      "trolololo": 0.0,
+      "topBand": 102.7097438350326,
+      "bottomBand": 5.011108277088724
+    },
+    {
+      "index": 322,
+      "date": "2012-11-18",
+      "trolololo": 0.0,
+      "topBand": 235.96272300217342,
+      "bottomBand": 13.226509736597116
+    },
+    {
+      "index": 464,
+      "date": "2013-04-09",
+      "trolololo": 82.44108487203478,
+      "topBand": 378.1545733331823,
+      "bottomBand": 22.83434069297088
+    },
+    {
+      "index": 699,
+      "date": "2013-11-30",
+      "trolololo": 100.0,
+      "topBand": 759.7822553923269,
+      "bottomBand": 51.025547832076654
+    },
+    {
+      "index": 1109,
+      "date": "2015-01-14",
+      "trolololo": 2.3530344353246364,
+      "topBand": 2118.527233781788,
+      "bottomBand": 165.75817295372005
+    },
+    {
+      "index": 2177,
+      "date": "2017-12-17",
+      "trolololo": 100.0,
+      "topBand": 14679.951246528528,
+      "bottomBand": 1558.0281833822187
+    },
+    {
+      "index": 2540,
+      "date": "2018-12-15",
+      "trolololo": 5.9360619098889895,
+      "topBand": 24166.203830714847,
+      "bottomBand": 2803.588423254141
+    },
+    {
+      "index": 3287,
+      "date": "2020-12-31",
+      "trolololo": 66.00220372635012,
+      "topBand": 56931.484713961516,
+      "bottomBand": 7846.544929385133
+    },
+    {
+      "index": 3288,
+      "date": "2021-01-01",
+      "trolololo": 66.56559243241864,
+      "topBand": 56989.56810882178,
+      "bottomBand": 7856.3071210544285
+    },
+    {
+      "index": 3601,
+      "date": "2021-11-10",
+      "trolololo": 90.73868144547102,
+      "topBand": 77303.45475459089,
+      "bottomBand": 11421.73376965106
+    },
+    {
+      "index": 3977,
+      "date": "2022-11-21",
+      "trolololo": 0.0,
+      "topBand": 107726.57838371032,
+      "bottomBand": 17273.673098511445
+    },
+    {
+      "index": 4500,
+      "date": "2024-04-27",
+      "trolololo": 45.434344533843394,
+      "topBand": 162015.613878752,
+      "bottomBand": 29052.66639812408
+    },
+    {
+      "index": 5187,
+      "date": "2026-03-15",
+      "trolololo": 20.042001617831172,
+      "topBand": 255974.8050599642,
+      "bottomBand": 53040.41030494425
+    }
+  ],
+  "scenarios": [
+    {
+      "spec": {
+        "name": "s1_is_max_return",
+        "start": "2012-01-01",
+        "end": "2020-12-31",
+        "thresholdBuy": 9,
+        "thresholdSell": 99,
+        "allocBuyPct": 0.25,
+        "allocSellPct": 0.17,
+        "initialCash": 100000.0,
+        "feeRate": 0.001
+      },
+      "metrics": {
+        "totalReturn": 127273.45352568757,
+        "maxDrawdown": 0.7099562189668583,
+        "maxDrawdownDate": "2013-07-06",
+        "sharpeRatio": 2.1056337262362717,
+        "winRate": 1.0,
+        "tradeCount": 213,
+        "buyCount": 157,
+        "sellCount": 56,
+        "finalCash": 6.294544589104067,
+        "finalBtc": 438529.6263747446,
+        "finalPortfolioValue": 12727445352.568756
+      },
+      "benchmarkMetrics": {
+        "totalReturn": 4831.3295,
+        "maxDrawdown": 0.8449339207048459,
+        "sharpeRatio": 1.4713017128504102,
+        "finalValue": 483232950.0
+      },
+      "lowSampleWarning": false,
+      "historyLength": 3287,
+      "firstTrade": {
+        "date": "2012-02-15",
+        "action": "BUY",
+        "btcPrice": 5.0,
+        "amountUsd": 25000.0,
+        "btcAmount": 4995.0,
+        "signalIndex": 8.8
+      },
+      "lastTrade": {
+        "date": "2020-04-16",
+        "action": "BUY",
+        "btcPrice": 6640.45,
+        "amountUsd": 2.1,
+        "btcAmount": 0.000316,
+        "signalIndex": 8.1
+      }
+    },
+    {
+      "spec": {
+        "name": "s1_oos_max_return",
+        "start": "2021-01-01",
+        "end": "2026-03-15",
+        "thresholdBuy": 9,
+        "thresholdSell": 99,
+        "allocBuyPct": 0.25,
+        "allocSellPct": 0.17,
+        "initialCash": 100000.0,
+        "feeRate": 0.001
+      },
+      "metrics": {
+        "totalReturn": 2.839448425303953,
+        "maxDrawdown": 0.49132548970277357,
+        "maxDrawdownDate": "2026-02-05",
+        "sharpeRatio": 0.7542519101098926,
+        "winRate": 0.0,
+        "tradeCount": 36,
+        "buyCount": 36,
+        "sellCount": 0,
+        "finalCash": 3.178377532566913,
+        "finalBtc": 5.280234128049492,
+        "finalPortfolioValue": 383944.8425303953
+      },
+      "benchmarkMetrics": {
+        "totalReturn": 1.5053549883666684,
+        "maxDrawdown": 0.7666785111486186,
+        "sharpeRatio": 0.5212545810023493,
+        "finalValue": 250535.49883666684
+      },
+      "lowSampleWarning": false,
+      "historyLength": 1900,
+      "firstTrade": {
+        "date": "2022-09-21",
+        "action": "BUY",
+        "btcPrice": 18891.28,
+        "amountUsd": 25000.0,
+        "btcAmount": 1.322038,
+        "signalIndex": 8.4
+      },
+      "lastTrade": {
+        "date": "2022-11-19",
+        "action": "BUY",
+        "btcPrice": 16696.22,
+        "amountUsd": 1.06,
+        "btcAmount": 6.3e-05,
+        "signalIndex": 0.0
+      }
+    },
+    {
+      "spec": {
+        "name": "s2_full_max_return",
+        "start": "2012-01-01",
+        "end": "2026-03-15",
+        "thresholdBuy": 7,
+        "thresholdSell": 96,
+        "allocBuyPct": 0.25,
+        "allocSellPct": 0.14,
+        "initialCash": 100000.0,
+        "feeRate": 0.001
+      },
+      "metrics": {
+        "totalReturn": 983244.2951870442,
+        "maxDrawdown": 0.7099562207580193,
+        "maxDrawdownDate": "2013-07-06",
+        "sharpeRatio": 1.8054342900785174,
+        "winRate": 1.0,
+        "tradeCount": 314,
+        "buyCount": 198,
+        "sellCount": 116,
+        "finalCash": 3.105932581382337,
+        "finalBtc": 1352227.6555168745,
+        "finalPortfolioValue": 98324529518.70442
+      },
+      "benchmarkMetrics": {
+        "totalReturn": 12105.7145,
+        "maxDrawdown": 0.8449339207048459,
+        "sharpeRatio": 1.1893865697487802,
+        "finalValue": 1210671450.0
+      },
+      "lowSampleWarning": false,
+      "historyLength": 5187,
+      "firstTrade": {
+        "date": "2012-02-27",
+        "action": "BUY",
+        "btcPrice": 5.0,
+        "amountUsd": 25000.0,
+        "btcAmount": 4995.0,
+        "signalIndex": 6.9
+      },
+      "lastTrade": {
+        "date": "2023-09-07",
+        "action": "BUY",
+        "btcPrice": 25748.31,
+        "amountUsd": 1.04,
+        "btcAmount": 4e-05,
+        "signalIndex": 5.9
+      }
+    },
+    {
+      "spec": {
+        "name": "s2_full_max_sharpe",
+        "start": "2012-01-01",
+        "end": "2026-03-15",
+        "thresholdBuy": 4,
+        "thresholdSell": 59,
+        "allocBuyPct": 0.25,
+        "allocSellPct": 0.03,
+        "initialCash": 100000.0,
+        "feeRate": 0.001
+      },
+      "metrics": {
+        "totalReturn": 138149.27022501806,
+        "maxDrawdown": 0.5903068138639799,
+        "maxDrawdownDate": "2013-04-16",
+        "sharpeRatio": 1.8568433306684688,
+        "winRate": 1.0,
+        "tradeCount": 1239,
+        "buyCount": 164,
+        "sellCount": 1075,
+        "finalCash": 13420808536.896067,
+        "finalBtc": 5421.568159830284,
+        "finalPortfolioValue": 13815027022.501806
+      },
+      "benchmarkMetrics": {
+        "totalReturn": 12105.7145,
+        "maxDrawdown": 0.8449339207048459,
+        "sharpeRatio": 1.1893865697487802,
+        "finalValue": 1210671450.0
+      },
+      "lowSampleWarning": false,
+      "historyLength": 5187,
+      "firstTrade": {
+        "date": "2012-03-20",
+        "action": "BUY",
+        "btcPrice": 5.0,
+        "amountUsd": 25000.0,
+        "btcAmount": 4995.0,
+        "signalIndex": 3.4
+      },
+      "lastTrade": {
+        "date": "2025-10-10",
+        "action": "SELL",
+        "btcPrice": 121704.74,
+        "amountUsd": 20407130.57,
+        "btcAmount": 167.677366,
+        "signalIndex": 59.7
+      }
+    },
+    {
+      "spec": {
+        "name": "custom_moderate_2018_2024",
+        "start": "2018-01-01",
+        "end": "2024-12-31",
+        "thresholdBuy": 20,
+        "thresholdSell": 75,
+        "allocBuyPct": 0.1,
+        "allocSellPct": 0.1,
+        "initialCash": 50000.0,
+        "feeRate": 0.002
+      },
+      "metrics": {
+        "totalReturn": 46.47626451278452,
+        "maxDrawdown": 0.614392176076294,
+        "maxDrawdownDate": "2020-03-12",
+        "sharpeRatio": 1.2757804474126668,
+        "winRate": 1.0,
+        "tradeCount": 319,
+        "buyCount": 185,
+        "sellCount": 134,
+        "finalCash": 9.02388314479751,
+        "finalBtc": 25.41818397854247,
+        "finalPortfolioValue": 2373813.225639226
+      },
+      "benchmarkMetrics": {
+        "totalReturn": 5.604442872984627,
+        "maxDrawdown": 0.8137277829747428,
+        "sharpeRatio": 0.6926600697697273,
+        "finalValue": 330222.14364923135
+      },
+      "lowSampleWarning": false,
+      "historyLength": 2557,
+      "firstTrade": {
+        "date": "2018-11-25",
+        "action": "BUY",
+        "btcPrice": 3880.78,
+        "amountUsd": 5000.0,
+        "btcAmount": 1.285824,
+        "signalIndex": 15.7
+      },
+      "lastTrade": {
+        "date": "2022-10-31",
+        "action": "BUY",
+        "btcPrice": 20633.7,
+        "amountUsd": 1.0,
+        "btcAmount": 4.8e-05,
+        "signalIndex": 10.9
+      }
+    }
+  ]
+}

@@ -43,3 +43,11 @@ Thumbs.db
 __pycache__/
 *.nbi
 *.nbc
+
+# Next.js web app
+web/node_modules/
+web/.next/
+web/.vercel/
+web/coverage/
+web/*.tsbuildinfo
+web/next-env.d.ts
